@@ -86,10 +86,10 @@ static int BinaryMatching(lua_State *L) {
   const long* i2p = THLongTensor_data(input2);
   byte* op  = THByteTensor_data(output);
   long* osp = THLongTensor_data(outputscore);
-  const long* i1s = input1->stride;
-  const long* i2s = input2->stride;
-  const long* os  = output->stride;
-  const long* oss = outputscore->stride;
+  const long* const i1s = input1->stride;
+  const long* const i2s = input2->stride;
+  const long* const os  = output->stride;
+  const long* const oss = outputscore->stride;
 
   unsigned int bestsum, sum;
   int bestdx = 0, bestdy = 0;
@@ -180,24 +180,53 @@ static int Merge(lua_State *L) {
   const byte* i2p  = THByteTensor_data(input2);
   const long* i2sp = THLongTensor_data(input2s);
   byte* op   = THByteTensor_data(output);
-  const long* i1s  = input1 ->stride;
-  const long* i1ss = input1s->stride;
-  const long* i2s  = input2 ->stride;
-  const long* i2ss = input2s->stride;
-  const long* os   = output ->stride;
+  const long* const i1s  = input1 ->stride;
+  const long* const i1ss = input1s->stride;
+  const long* const i2s  = input2 ->stride;
+  const long* const i2ss = input2s->stride;
+  const long* const os   = output ->stride;
   
+#if 0
   for (int i = 0; i < h; ++i)
     for (int j = 0; j < w; ++j) {      
       if (i1sp[i*i1ss[0]+j*i1ss[1]]<=i2sp[(i/2)*i2ss[0]+(j/2)*i2ss[1]]) {
 	op[      i*os[1]+j*os[2]] = i1p[       i*i1s[1]+j*i1s[2]]+hhwin;
 	op[os[0]+i*os[1]+j*os[2]] = i1p[i1s[0]+i*i1s[1]+j*i1s[2]]+hwwin;
-	//op[      i*os[1]+j*os[2]] = 100;
-	//op[os[0]+i*os[1]+j*os[2]] = 100;
       } else {
 	op[      i*os[1]+j*os[2]] = i2p[       (i/2)*i2s[1]+(j/2)*i2s[2]]*2;
 	op[os[0]+i*os[1]+j*os[2]] = i2p[i2s[0]+(i/2)*i2s[1]+(j/2)*i2s[2]]*2;
       }
     }
+#else
+  const byte *const i1p0 = i1p, *const i2p0 = i2p;
+  byte *const op0 = op;
+  const long* const i1sp0 = i1sp, *const i2sp0 = i2sp, *i1spend;
+  int c, i;
+  const int wincr = (w/2)*2*i1ss[1];
+  //#pragma omp parallel for private(i1sp, i1spend, i2sp, i1p, i2p, op, c)
+  for (i = 0; i < h; ++i) {
+    i1sp = i1sp0 + i*i1ss[0];
+    i1spend = i1sp + wincr;
+    i2sp = i2sp0 + (i/2)*i2ss[0];
+    i1p = i1p0 + i*i1s[1];
+    i2p = i2p0 + (i/2)*i2s[1];
+    op = op0 + i*os[1];
+    while (i1sp != i1spend) {
+      c = ((*i1sp) <= (*i2sp));
+      *op         = c*(*i1p          + hhwin) + (!c)*(*i2p         )*2;
+      *(op+os[0]) = c*(*(i1p+i1s[0]) + hwwin) + (!c)*(*(i2p+i2s[0]))*2;
+      i1sp += i1ss[1];
+      i1p += i1s[2];
+      op += os[2];
+      c = ((*i1sp) <= (*i2sp));
+      *op         = c*(*i1p          + hhwin) + (!c)*(*i2p         )*2;
+      *(op+os[0]) = c*(*(i1p+i1s[0]) + hwwin) + (!c)*(*(i2p+i2s[0]))*2;
+      i1sp += i1ss[1]; i2sp += i2ss[1];
+      i1p += i1s[2]; i2p += i2s[2];
+      op += os[2];
+    }
+  }
+#endif
      
   return 0;
 }

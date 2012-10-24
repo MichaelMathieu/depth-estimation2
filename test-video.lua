@@ -77,11 +77,11 @@ while true do
    --print(score1)
    --print(score2)
    print("toc match   : ", timer:time()['real'])
+   local tmed = torch.Timer()
    MergeFlow(flow1, score1, flow2, score2, flow,
 	     math.floor((hwin-1)/2), math.floor((wwin-1)/2), n1, n2)
-   local tmed = torch.Timer()
+   print("merge                                 ", tmed:time()['real'])
    MedianFilter(flow, 5)
-   print("med                ", tmed:time()['real'])
    print("toc merge   : ", timer:time()['real'])
    flowreal:resize(flow:size())
    flowreal:copy(flow)
