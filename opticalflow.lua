@@ -20,27 +20,24 @@ function computeOpticalFlowOpenCV(im1, im2, previous, method)
    return flow
 end
 
-function opticalFlowFastBM(hwin, wwin)
+function opticalFlowFastBM(hwin, wwin, filtersp)
    local lwin = math.floor((wwin-1)/2)
    local rwin = math.ceil ((wwin-1)/2)
    local twin = math.floor((hwin-1)/2)
    local bwin = math.ceil ((hwin-1)/2)
    local k_norm = 17
    local n_chans = 1
-   local filtersp = {
-      {2, 8, 4, 16},
-      {1, 4, 4, 32},
-      --{2,4,4,16},
-      --{1,2,2,32}
-   }
    
    function filter(n_freq, n_theta, n_phases, k_filter, kmax)
       local ret = nn.Sequential()
-      local k1 = math.floor((kmax-k_filter)/2)
-      local k2 = math.ceil((kmax-k_filter)/2)
       local n_filters = n_freq*n_theta*n_phases
       ret:add(nn.SpatialConvolution(n_chans, n_filters, k_filter, k_filter))
+      local k1 = math.floor((kmax-k_filter)/2)
+      local k2 = math.ceil((kmax-k_filter)/2)
       ret:add(nn.SpatialPadding(-k1, -k1, -k2, -k2))
+      --local k1 = math.floor((k_filter-1)/2)
+      --local k2 = math.ceil ((k_filter-1)/2)
+      --ret:add(nn.SpatialPadding(k1, k2, k1, k2))
       local fil = ret.modules[1]
       fil.bias:zero()
       local i = 1
@@ -57,8 +54,8 @@ function opticalFlowFastBM(hwin, wwin)
 	    end
 	 end
       end
-      --image.display(fil.weight)
-      return ret
+      image.display(fil.weight)
+      return ret, n_filters
    end
    
    local filters = nn.Sequential()
@@ -66,16 +63,23 @@ function opticalFlowFastBM(hwin, wwin)
 						  image.gaussian1D(k_norm)))
    local filtergroups = nn.ConcatTable()
    filters:add(filtergroups)
+   local n_filters = 0
    for i = 1,#filtersp do
-      filtergroups:add(filter(filtersp[i][1],filtersp[i][2], filtersp[i][3],
-			      filtersp[i][4], filtersp[#filtersp][4]))
+      local localfilter,n = filter(filtersp[i][1],filtersp[i][2], filtersp[i][3],
+				 filtersp[i][4], filtersp[#filtersp][4])
+      filtergroups:add(localfilter)
+      n_filters = n_filters + n
    end
    filters:add(nn.JoinTable(1))
    filters:add(nn.Binarizer(0))
    
-   local matcher = nn.BinaryMatching(hwin, wwin)
+   local hpad = filtersp[#filtersp][4]
+   local wpad = filtersp[#filtersp][4]
+   local matcher = nn.BinaryMatching(hwin, wwin,
+				     math.floor((hpad-1)/2),math.ceil((hpad-1)/2),
+				     math.floor((wpad-1)/2),math.ceil((wpad-1)/2))
 
-   return filters, matcher
+   return filters, matcher, n_filters
 end
 
 
