@@ -14,6 +14,7 @@ typedef THFloatTensor Tensor;
 typedef float Real;
 typedef double accreal;
 typedef unsigned char byte;
+typedef unsigned short uint16;
 
 static int Binarize(lua_State *L) {
   const char* idreal = ID_TENSOR_STRING;
@@ -62,7 +63,6 @@ static int Binarize(lua_State *L) {
       ip += is[1] - w*is[2];
       op += os[0] - w*os[1];
     }
-    //op += os[0] - h*os[1];
   }
 #endif
 
@@ -95,7 +95,7 @@ static int BinaryMatching(lua_State *L) {
   int bestdx = 0, bestdy = 0;
   int x, y, dx, dy, k;
   
-#pragma omp parallel for private(x, dy, dx, sum, k, bestsum, bestdx, bestdy)
+#pragma omp parallel for private(x, dy, dx, sum, k, bestsum) firstprivate(bestdx, bestdy)
   for (y = 0; y < h; ++y)
     for (x = 0; x < w; ++x) {
       bestsum = -1;
@@ -127,21 +127,37 @@ static int MedianFilter(lua_State *L) {
 
   const int h = input->size[1];
   const int w = input->size[2];
-  byte* ip = THByteTensor_data(input);
-  const long* is = input->stride;
+  byte* const ip = THByteTensor_data(input);
+  const long* const is = input->stride;
 
-  cv::Mat_<unsigned short> input_cv(h, w);
-  int i, j, t;
-  for (i = 0; i < h; ++i)
-    for (j = 0; j < w; ++j)
-      input_cv(i, j) = ip[i*is[1]+j*is[2]]*256+ip[is[0]+i*is[1]+j*is[2]];
-  cv::medianBlur(input_cv, input_cv, k);
-  for (i = 0; i < h; ++i)
-    for (j = 0; j < w; ++j) {
-      t = input_cv(i, j)/256;
-      ip[     +i*is[1]+j*is[2]] = t;
-      ip[is[0]+i*is[1]+j*is[2]] = input_cv(i, j)-t*256;
+  cv::Mat_<uint16> input_cv(h, w);
+  uint16* pcv = (uint16*)input_cv.data;
+  int cvstep = input_cv.step1();
+  byte *ip1 = ip, *ip2 = ip + is[0], *ipendh = ip + h*is[1], *ipendw;
+  while (ip1 != ipendh) {
+    ipendw = ip1 + w*is[2];
+    while (ip1 != ipendw) {
+      *pcv = (*ip1)*256 + (*ip2);
+      ++pcv; ip1 += is[2]; ip2 += is[2];
     }
+    ip1 += is[1] - w*is[2];
+    ip2 += is[1] - w*is[2];
+    pcv += cvstep - w;
+  }
+  cv::medianBlur(input_cv, input_cv, k);
+  pcv = (uint16*)input_cv.data;
+  ip1 = ip; ip2 = ip + is[0]; ipendh = ip + h*is[1];
+  while (ip1 != ipendh) {
+    ipendw = ip1 + w*is[2];
+    while (ip1 != ipendw) {
+      *ip1 = (*pcv) / 256;
+      *ip2 = (*pcv) - (*ip1)*256;
+      ++pcv; ip1 += is[2]; ip2 += is[2];
+    }
+    ip1 += is[1] - w*is[2];
+    ip2 += is[1] - w*is[2];
+    pcv += cvstep - w;
+  }
   
   return 0;
 }
