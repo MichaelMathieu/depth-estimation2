@@ -27,19 +27,44 @@ static int Binarize(lua_State *L) {
   const int w = input->size[2];
   const Real* ip = Tensor_(data)(input);
   long* op = THLongTensor_data(output);
-  const long* is = input->stride;
-  const long* os = output->stride;
+  const long* const is = input->stride;
+  const long* const os = output->stride;
 
   int longSize = sizeof(long)*8;
-  int iInt, shift;
-  for (int k = 0; k < N; ++k) {
+#if 0
+  int iInt, shift, i, j, k;
+#pragma omp parallel for private(iInt, shift, i, j)
+  for (k = 0; k < N; ++k) {
     iInt  = k / longSize;
     shift = k % longSize;
-    for (int i = 0; i < h; ++i)
-      for (int j = 0; j < w; ++j) {
+    for (i = 0; i < h; ++i)
+      for (j = 0; j < w; ++j) {
 	op[i*os[0]+j*os[1]+iInt*os[2]] |= ((ip[k*is[0]+i*is[1]+j*is[2]] > threshold) << shift);
       }
   }
+#else
+  long* const op0 = op;
+  const Real* iendh, *iendw, *const ip0 = ip;
+  int shift, k;
+#pragma omp parallel for private(iendh, iendw, shift, ip, op)
+  for (k = 0; k < N; ++k) {
+    op = op0 + (k/longSize)*os[2];
+    ip = ip0 + k*is[0];
+    iendh = ip + h*is[1];
+    shift = k % longSize;
+    while (ip != iendh) {
+      iendw = ip + w*is[2];
+      while (ip != iendw) {
+	*op |= (((*ip) > threshold) << shift);
+	ip += is[2];
+	op += os[1];
+      }
+      ip += is[1] - w*is[2];
+      op += os[0] - w*os[1];
+    }
+    //op += os[0] - h*os[1];
+  }
+#endif
 
   return 0;
 }
@@ -106,13 +131,14 @@ static int MedianFilter(lua_State *L) {
   const long* is = input->stride;
 
   cv::Mat_<unsigned short> input_cv(h, w);
-  for (int i = 0; i < h; ++i)
-    for (int j = 0; j < w; ++j)
+  int i, j, t;
+  for (i = 0; i < h; ++i)
+    for (j = 0; j < w; ++j)
       input_cv(i, j) = ip[i*is[1]+j*is[2]]*256+ip[is[0]+i*is[1]+j*is[2]];
   cv::medianBlur(input_cv, input_cv, k);
-  for (int i = 0; i < h; ++i)
-    for (int j = 0; j < w; ++j) {
-      int t = input_cv(i, j)/256;
+  for (i = 0; i < h; ++i)
+    for (j = 0; j < w; ++j) {
+      t = input_cv(i, j)/256;
       ip[     +i*is[1]+j*is[2]] = t;
       ip[is[0]+i*is[1]+j*is[2]] = input_cv(i, j)-t*256;
     }

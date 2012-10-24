@@ -56,6 +56,9 @@ local flow = torch.ByteTensor()
 local flowreal = torch.Tensor()
 local flowrealdisp = torch.Tensor()
 
+local meantfilter = 0
+local nfilter = 0
+
 while true do
    i_img = i_img + 1
    local im2 = loadImg(i_img)
@@ -63,7 +66,10 @@ while true do
    timer:reset()
    local im2filtered = filters:forward(im2)
    local im2filtered2 = filters2:forward(im22)
-   print("tcc filters : ", timer:time()['real'])
+   meantfilter = nfilter/(nfilter+1)*meantfilter + timer:time()['real'] /(nfilter+1)
+   nfilter = nfilter + 1
+   --print("toc filters : ", timer:time()['real'])
+   print("mean   filters : ", meantfilter)
    local flow1, score1 = matcher:forward{im1filtered, im2filtered}
    local flow2, score2 = matcher2:forward{im1filtered2, im2filtered2}
    score1:mul(n2)
