@@ -58,6 +58,7 @@ local flowrealdisp = torch.Tensor()
 
 local meantfilter = 0
 local nfilter = 0
+local totaltime = 0
 
 while true do
    i_img = i_img + 1
@@ -77,12 +78,14 @@ while true do
    --print(score1)
    --print(score2)
    print("toc match   : ", timer:time()['real'])
-   local tmed = torch.Timer()
+   --local tmed = torch.Timer()
    MergeFlow(flow1, score1, flow2, score2, flow,
 	     math.floor((hwin-1)/2), math.floor((wwin-1)/2), n1, n2)
-   print("merge                                 ", tmed:time()['real'])
+   --print("merge                                 ", tmed:time()['real'])
    MedianFilter(flow, 5)
    print("toc merge   : ", timer:time()['real'])
+   totaltime = totaltime + timer:time()['real']
+   print("  ===== FPS : ",1/(totaltime/nfilter), " =====")
    flowreal:resize(flow:size())
    flowreal:copy(flow)
    flowreal[1]:add(-math.floor((hwin-1)/2)*2)

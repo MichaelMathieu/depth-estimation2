@@ -95,6 +95,7 @@ static int BinaryMatching(lua_State *L) {
   int bestdx = 0, bestdy = 0;
   int x, y, dx, dy, k;
   
+#if 0
 #pragma omp parallel for private(x, dy, dx, sum, k, bestsum) firstprivate(bestdx, bestdy)
   for (y = 0; y < h; ++y)
     for (x = 0; x < w; ++x) {
@@ -116,6 +117,35 @@ static int BinaryMatching(lua_State *L) {
       op [os[0]+y*os [1]+x*os [2]] = bestdx;
       osp[      y*oss[0]+x*oss[1]] = bestsum;
     }
+#else
+  int dxmin, dxmax, dymin, dymax;
+#pragma omp parallel for private(x, dy, dx, sum, k, bestsum, dxmin, dymin, dxmax, dymax) firstprivate(bestdx, bestdy)
+  for (y = 0; y < h; ++y) {
+    if (y < 3*h/5) dymax = 3*hmax/5; else dymax = hmax;
+    if (y > 2*h/5) dymin = 2*hmax/5; else dymin = 0;
+    for (x = 0; x < w; ++x) {
+      if (x < 3*w/5) dxmax = 3*wmax/5; else dxmax = wmax;
+      if (x > 2*w/5) dxmin = 2*wmax/5; else dxmin = 0;
+      bestsum = -1;
+      for (dy = dymin; dy < dymax; ++dy)
+	for (dx = dxmin; dx < dxmax; ++dx) {
+	  sum = 0;
+	  for (k = 0; k < 1; ++k)
+	    sum += __builtin_popcountl(i1p[y*i1s[0]+x*i1s[1]+k*i1s[2]] ^
+				       i2p[(y+dy)*i2s[0]+(x+dx)*i2s[1]+k*i2s[2]]);
+	  //cout << sum << " " << bestsum << endl;
+	  if (sum < bestsum) {
+	    bestsum = sum;
+	    bestdx = dx;
+	    bestdy = dy;
+	  }
+	}
+      op [      y*os [1]+x*os [2]] = bestdy;
+      op [os[0]+y*os [1]+x*os [2]] = bestdx;
+      osp[      y*oss[0]+x*oss[1]] = bestsum;
+    }
+  }
+#endif
 
   return 0;
 }
