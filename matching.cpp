@@ -262,11 +262,17 @@ static int Merge(lua_State *L) {
   return 0;
 }
 
+static int SizeofLong(lua_State *L) {
+  lua_pushinteger(L, sizeof(long));
+  return 1;
+}
+
 static const struct luaL_reg libmatching[] = {
   {"binarize", Binarize},
   {"binaryMatching", BinaryMatching},
   {"medianFilter", MedianFilter},
   {"merge", Merge},
+  {"sizeofLong", SizeofLong},
   {NULL, NULL}
 };
 

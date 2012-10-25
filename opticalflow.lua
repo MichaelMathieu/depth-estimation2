@@ -71,7 +71,7 @@ function opticalFlowFastBM(hwin, wwin, filtersp)
       n_filters = n_filters + n
    end
    filters:add(nn.JoinTable(1))
-   filters:add(nn.Binarizer(0.3))
+   filters:add(nn.Binarizer(0.1))
    
    local hpad = filtersp[#filtersp][4]
    local wpad = filtersp[#filtersp][4]

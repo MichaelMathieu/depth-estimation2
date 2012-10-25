@@ -9,10 +9,11 @@ function Binarizer:__init(threshold)
    parent1:__init(self)
    self.output = torch.LongTensor()
    self.threshold = threshold
+   self.wordsize = libmatching.sizeofLong()*8
 end
 
 function Binarizer:updateOutput(input)
-   local k = math.ceil(2*input:size(1)/64) --TODO doesn't work on 32bits
+   local k = math.ceil(2*input:size(1)/self.wordsize)
    self.output:resize(input:size(2), input:size(3), k):zero()
    libmatching.binarize(input, self.output, self.threshold)
    return self.output
