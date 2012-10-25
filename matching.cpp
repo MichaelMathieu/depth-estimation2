@@ -22,7 +22,7 @@ static int Binarize(lua_State *L) {
   Tensor*        input = (Tensor      *)luaT_checkudata(L, 1, idreal);
   THLongTensor* output = (THLongTensor*)luaT_checkudata(L, 2, idlong);
   Real       threshold = lua_tonumber(L, 3);
-  
+
   const int N = input->size[0];
   const int h = input->size[1];
   const int w = input->size[2];
@@ -80,7 +80,7 @@ static int BinaryMatching(lua_State *L) {
   THLongTensor* outputscore = (THLongTensor*)luaT_checkudata(L, 4, idlong);
   int           hmax        = lua_tointeger(L, 5);
   int           wmax        = lua_tointeger(L, 6);
-  
+
   const int K = input1->size[2];
   const int h = input1->size[0];
   const int w = input1->size[1];
@@ -96,7 +96,7 @@ static int BinaryMatching(lua_State *L) {
   unsigned int bestsum, sum;
   int bestdx = 0, bestdy = 0;
   int x, y, dx, dy, k;
-  
+
 #if 0
 #pragma omp parallel for private(x, dy, dx, sum, k, bestsum) firstprivate(bestdx, bestdy)
   for (y = 0; y < h; ++y)
@@ -190,7 +190,7 @@ static int MedianFilter(lua_State *L) {
     ip2 += is[1] - w*is[2];
     pcv += cvstep - w;
   }
-  
+
   return 0;
 }
 
@@ -217,10 +217,10 @@ static int Merge(lua_State *L) {
   const long* const i2s  = input2 ->stride;
   const long* const i2ss = input2s->stride;
   const long* const os   = output ->stride;
-  
+
 #if 0
   for (int i = 0; i < h; ++i)
-    for (int j = 0; j < w; ++j) {      
+    for (int j = 0; j < w; ++j) {
       if (i1sp[i*i1ss[0]+j*i1ss[1]]<=i2sp[(i/2)*i2ss[0]+(j/2)*i2ss[1]]) {
 	op[      i*os[1]+j*os[2]] = i1p[       i*i1s[1]+j*i1s[2]]+hhwin;
 	op[os[0]+i*os[1]+j*os[2]] = i1p[i1s[0]+i*i1s[1]+j*i1s[2]]+hwwin;
@@ -261,7 +261,7 @@ static int Merge(lua_State *L) {
     }
   }
 #endif
-     
+
   return 0;
 }
 

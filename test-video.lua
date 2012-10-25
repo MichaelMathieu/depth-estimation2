@@ -83,7 +83,7 @@ while true do
 	     math.floor((hwin-1)/2), math.floor((wwin-1)/2), n1, n2)
    --print("merge                                 ", tmed:time()['real'])
    MedianFilter(flow, 5)
-   print("toc merge   : ", timer:time()['real'])
+   print("toc median   : ", timer:time()['real'])
    totaltime = totaltime + timer:time()['real']
    print("  ===== FPS : ",1/(totaltime/nfilter), " =====")
    flowreal:resize(flow:size())
