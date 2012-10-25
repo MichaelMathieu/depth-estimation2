@@ -41,7 +41,7 @@ static int Binarize(lua_State *L) {
     for (i = 0; i < h; ++i)
       for (j = 0; j < w; ++j) {
 	op[i*os[0]+j*os[1]+iInt*os[2]] |= ((ip[k*is[0]+i*is[1]+j*is[2]] > threshold) << shift);
-	op[i*os[0]+j*os[1]+iInt*os[2]] |= ((ip[k*is[0]+i*is[1]+j*is[2]] < threshold) << shift+1);
+	op[i*os[0]+j*os[1]+iInt*os[2]] |= ((ip[k*is[0]+i*is[1]+j*is[2]] < -threshold) << (shift+1));
       }
   }
 #else
@@ -104,7 +104,7 @@ static int BinaryMatching(lua_State *L) {
       for (dy = 0; dy < hmax; ++dy)
 	for (dx = 0; dx < wmax; ++dx) {
 	  sum = 0;
-	  for (k = 0; k < 1; ++k)
+	  for (k = 0; k < K; ++k)
 	    sum += __builtin_popcountl(i1p[y*i1s[0]+x*i1s[1]+k*i1s[2]] ^
 				       i2p[(y+dy)*i2s[0]+(x+dx)*i2s[1]+k*i2s[2]]);
 	  //cout << sum << " " << bestsum << endl;
@@ -131,7 +131,7 @@ static int BinaryMatching(lua_State *L) {
       for (dy = dymin; dy < dymax; ++dy)
 	for (dx = dxmin; dx < dxmax; ++dx) {
 	  sum = 0;
-	  for (k = 0; k < 1; ++k)
+	  for (k = 0; k < K; ++k)
 	    sum += __builtin_popcountl(i1p[y*i1s[0]+x*i1s[1]+k*i1s[2]] ^
 				       i2p[(y+dy)*i2s[0]+(x+dx)*i2s[1]+k*i2s[2]]);
 	  //cout << sum << " " << bestsum << endl;

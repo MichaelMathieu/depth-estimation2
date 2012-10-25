@@ -49,7 +49,7 @@ local i_img = 1
 local im1 = loadImg(i_img)
 local im12 = image.scale(im1, im1:size(3)/2, im1:size(2)/2)
 local im1filtered = filters:forward(im1):clone()
-local im1filtered2 = filters:forward(im12):clone()
+local im1filtered2 = filters2:forward(im12):clone()
 local win, win2, win3, win4, win5
 local timer = torch.Timer()
 local flow = torch.ByteTensor()
