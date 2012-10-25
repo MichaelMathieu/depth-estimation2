@@ -32,15 +32,16 @@ static int Binarize(lua_State *L) {
   const long* const os = output->stride;
 
   int longSize = sizeof(long)*8;
-#if 0
+#if 1
   int iInt, shift, i, j, k;
 #pragma omp parallel for private(iInt, shift, i, j)
   for (k = 0; k < N; ++k) {
-    iInt  = k / longSize;
-    shift = k % longSize;
+    iInt  = (2*k) / longSize;
+    shift = (2*k) % longSize;
     for (i = 0; i < h; ++i)
       for (j = 0; j < w; ++j) {
 	op[i*os[0]+j*os[1]+iInt*os[2]] |= ((ip[k*is[0]+i*is[1]+j*is[2]] > threshold) << shift);
+	op[i*os[0]+j*os[1]+iInt*os[2]] |= ((ip[k*is[0]+i*is[1]+j*is[2]] < threshold) << shift+1);
       }
   }
 #else

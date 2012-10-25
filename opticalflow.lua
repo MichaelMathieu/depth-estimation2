@@ -46,7 +46,7 @@ function opticalFlowFastBM(hwin, wwin, filtersp)
 	    for i_phase = 1,n_phases do
 	       local freq = math.pow(2,i_freq-1)
 	       local theta = (i_theta-1)*math.pi/n_theta
-	       local phase = (i_phase-1)*2*math.pi/n_phases
+	       local phase = (i_phase-1)*math.pi/n_phases
 	       for k = 1,n_chans do
 		  fil.weight[i][k]:copy(wavelet2d(k_filter, freq, phase, theta))
 	       end
@@ -71,7 +71,7 @@ function opticalFlowFastBM(hwin, wwin, filtersp)
       n_filters = n_filters + n
    end
    filters:add(nn.JoinTable(1))
-   filters:add(nn.Binarizer(0))
+   filters:add(nn.Binarizer(0.3))
    
    local hpad = filtersp[#filtersp][4]
    local wpad = filtersp[#filtersp][4]

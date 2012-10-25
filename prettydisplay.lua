@@ -40,6 +40,8 @@ local function printin(src, dst, y, x, ranges)
       if vrange ~= 0 then
 	 src:add(-vmin)
 	 src:div(vrange)
+	 src:add(src:gt(1):real():cmul(-src+1))
+	 src:add(src:lt(0):real():cmul(-src))
       end
    end
 

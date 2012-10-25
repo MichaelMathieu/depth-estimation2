@@ -17,15 +17,15 @@ local filtersp1 = {
    --{1, 4, 4, 32},
    --{{1,2},{0,3.14/4,3.14/2,3*3.14/4},{0,3.14/2,3,4},16},
    --{{1},{0,3.14/4,3.14/2},{0,3.14/2},16},
-   {2,4,3,16},
-   {1,2,2,32},
+   {2,4,2,16},
+   {1,2,1,32},
    --{1,2,2,32}
 }
 local filtersp2 = {
    --{3, 8, 4, 16}
    --{2, 8, 4, 16}
    --{{1,2},{0,3.14/2,3.14,3*3.14/2},{0,3.14/2},16},
-   {2,4,3,16},
+   {2,4,2,16},
 }
 local filters, matcher, n1 = opticalFlowFastBM(hwin, wwin, filtersp1)
 local filters2, matcher2, n2 = opticalFlowFastBM(hwin, wwin, filtersp2)
@@ -67,7 +67,7 @@ while true do
    timer:reset()
    local im2filtered = filters:forward(im2)
    local im2filtered2 = filters2:forward(im22)
-   meantfilter = nfilter/(nfilter+1)*meantfilter + timer:time()['real'] /(nfilter+1)
+   meantfilter = nfilter/(nfilter+1)*meantfilter + timer:time()['real']/(nfilter+1)
    nfilter = nfilter + 1
    --print("toc filters : ", timer:time()['real'])
    print("mean   filters : ", meantfilter)
@@ -93,17 +93,16 @@ while true do
    flowrealdisp:resizeAs(flowreal)
    flowrealdisp:copy(flowreal)
    local norm = (flowreal[1]:cmul(flowreal[1])+flowreal[2]:cmul(flowreal[2])):sqrt()
-   
    local score2b = image.scale(score2:real(), score1:size(2),
 			       score1:size(1), 'simple')
    local select = score1:real():gt(score2b)
    local maxflow = math.max(math.ceil((hwin-1)/2)*2,math.ceil((wwin-1)/2)*2)
    win=image.display{image=prettydisplay({{im2,norm,flow1},
 					  {flowrealdisp,flow2},
-					  {score1, score2b, select}},
+					  {score1:real()/n2, score2b:real()/n1, select}},
 					 {{{},{},{}},
 					  {{-maxflow,maxflow},{}},
-					  {{},{},{}}}),
+					  {{0,10},{0,10},{}}}),
 		     win=win}
    --[[win = image.display{image=norm, win=win, min=0, max=20}
    win2 = image.display{image=im2, win=win2}
