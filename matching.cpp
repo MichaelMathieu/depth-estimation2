@@ -235,7 +235,9 @@ static int Merge(lua_State *L) {
   const long* const i1sp0 = i1sp, *const i2sp0 = i2sp, *i1spend;
   int c, i;
   const int wincr = (w/2)*2*i1ss[1];
-  //#pragma omp parallel for private(i1sp, i1spend, i2sp, i1p, i2p, op, c)
+#ifdef __ARM__
+#pragma omp parallel for private(i1sp, i1spend, i2sp, i1p, i2p, op, c)
+#endif
   for (i = 0; i < h; ++i) {
     i1sp = i1sp0 + i*i1ss[0];
     i1spend = i1sp + wincr;
