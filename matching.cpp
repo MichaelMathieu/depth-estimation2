@@ -16,6 +16,8 @@ typedef double accreal;
 typedef unsigned char byte;
 typedef unsigned short uint16;
 
+#define TWO_BITS_PER_FILTER
+
 static int Binarize(lua_State *L) {
   const char* idreal = ID_TENSOR_STRING;
   const char* idlong = "torch.LongTensor";
@@ -36,12 +38,19 @@ static int Binarize(lua_State *L) {
   int iInt, shift, i, j, k;
 #pragma omp parallel for private(iInt, shift, i, j)
   for (k = 0; k < N; ++k) {
+#ifdef TWO_BITS_PER_FILTER
     iInt  = (2*k) / longSize;
     shift = (2*k) % longSize;
+#else
+    iInt  = k / longSize;
+    shift = k % longSize;
+#endif
     for (i = 0; i < h; ++i)
       for (j = 0; j < w; ++j) {
 	op[i*os[0]+j*os[1]+iInt*os[2]] |= ((ip[k*is[0]+i*is[1]+j*is[2]] > threshold) << shift);
+#ifdef TWO_BUTS_PER_FILTER
 	op[i*os[0]+j*os[1]+iInt*os[2]] |= ((ip[k*is[0]+i*is[1]+j*is[2]] < -threshold) << (shift+1));
+#endif
       }
   }
 #else
@@ -50,10 +59,15 @@ static int Binarize(lua_State *L) {
   int shift, k;
 #pragma omp parallel for private(iendh, iendw, shift, ip, op)
   for (k = 0; k < N; ++k) {
+#ifdef TWO_BITS_PER_FILTER
     op = op0 + (2*k/longSize)*os[2];
+    shift = (2*k) % longSize;
+#else
+    op = op0 + (k/longSize)*os[2];
+    shift = k % longSize;
+#endif
     ip = ip0 + k*is[0];
     iendh = ip + h*is[1];
-    shift = (2*k) % longSize;
     while (ip != iendh) {
       iendw = ip + w*is[2];
       while (ip != iendw) {
@@ -93,7 +107,7 @@ static int BinaryMatching(lua_State *L) {
   const long* const os  = output->stride;
   const long* const oss = outputscore->stride;
 
-  unsigned int bestsum, sum;
+  int bestsum, sum;
   int bestdx = 0, bestdy = 0;
   int x, y, dx, dy, k;
 
@@ -121,14 +135,15 @@ static int BinaryMatching(lua_State *L) {
     }
 #else
   int dxmin, dxmax, dymin, dymax;
-#pragma omp parallel for private(x, dy, dx, sum, k, bestsum, dxmin, dymin, dxmax, dymax) firstprivate(bestdx, bestdy)
+  int t;
+#pragma omp parallel for private(t, x, dy, dx, sum, k, bestsum, dxmin, dymin, dxmax, dymax) firstprivate(bestdx, bestdy)
   for (y = 0; y < h; ++y) {
     if (y < 3*h/5) dymax = 3*hmax/5; else dymax = hmax;
     if (y > 2*h/5) dymin = 2*hmax/5; else dymin = 0;
     for (x = 0; x < w; ++x) {
       if (x < 3*w/5) dxmax = 3*wmax/5; else dxmax = wmax;
       if (x > 2*w/5) dxmin = 2*wmax/5; else dxmin = 0;
-      bestsum = -1;
+      bestsum = 2000000000;
       for (dy = dymin; dy < dymax; ++dy)
 	for (dx = dxmin; dx < dxmax; ++dx) {
 	  sum = 0;
@@ -136,11 +151,18 @@ static int BinaryMatching(lua_State *L) {
 	    sum += __builtin_popcountl(i1p[y*i1s[0]+x*i1s[1]+k*i1s[2]] ^
 				       i2p[(y+dy)*i2s[0]+(x+dx)*i2s[1]+k*i2s[2]]);
 	  //cout << sum << " " << bestsum << endl;
+#if 1
 	  if (sum < bestsum) {
 	    bestsum = sum;
 	    bestdx = dx;
 	    bestdy = dy;
 	  }
+#else
+          t = sum < bestsum;
+          bestsum += t*(sum - bestsum);
+          bestdx += t*(dx - bestdx);
+          bestdy += t*(dy - bestdy);
+#endif
 	}
       op [      y*os [1]+x*os [2]] = bestdy;
       op [os[0]+y*os [1]+x*os [2]] = bestdx;
