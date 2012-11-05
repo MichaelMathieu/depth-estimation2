@@ -9,7 +9,7 @@ require 'framegrabber'
 --local hwin = 19
 --local wwin = 20
 local hwin = 10
-local wwin = 15
+local wwin = 16
 local filtersp1 = {
    --{3, 8, 4, 16},
    --{2, 8, 4, 32},
@@ -26,6 +26,7 @@ local filtersp2 = {
    --{2, 8, 4, 16}
    --{{1,2},{0,3.14/2,3.14,3*3.14/2},{0,3.14/2},16},
    {2,4,2,16},
+
 }
 local filters, matcher, n1 = opticalFlowFastBM(hwin, wwin, filtersp1)
 local filters2, matcher2, n2 = opticalFlowFastBM(hwin, wwin, filtersp2)
