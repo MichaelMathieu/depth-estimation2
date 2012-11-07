@@ -18,7 +18,7 @@ local filtersp1 = {
    --{{1,2},{0,3.14/4,3.14/2,3*3.14/4},{0,3.14/2,3,4},16},
    --{{1},{0,3.14/4,3.14/2},{0,3.14/2},16},
    {2,4,2,16},
-   {1,2,1,32},
+   --{1,2,1,32},
    --{1,2,2,32}
 }
 local filtersp2 = {
@@ -70,8 +70,8 @@ while true do
    local im2filtered2 = filters2:forward(im22)
    meantfilter = nfilter/(nfilter+1)*meantfilter + timer:time()['real']/(nfilter+1)
    nfilter = nfilter + 1
-   --print("toc filters : ", timer:time()['real'])
-   print("mean   filters : ", meantfilter)
+   print("toc filters : ", timer:time()['real'])
+   --print("mean   filters : ", meantfilter)
    local flow1, score1 = matcher:forward{im1filtered, im2filtered}
    local flow2, score2 = matcher2:forward{im1filtered2, im2filtered2}
    score1:mul(n2)
@@ -86,7 +86,7 @@ while true do
    MedianFilter(flow, 3)
    print("toc median   : ", timer:time()['real'])
    totaltime = totaltime + timer:time()['real']
-   print("  ===== FPS : ",1/(totaltime/nfilter), " =====")
+   print("  ===== FPS : ",1/(timer:time()['real']), " =====")
    flowreal:resize(flow:size())
    flowreal:copy(flow)
    flowreal[1]:add(-math.floor((hwin-1)/2)*2)

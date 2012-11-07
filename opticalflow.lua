@@ -27,7 +27,7 @@ function opticalFlowFastBM(hwin, wwin, filtersp)
    local bwin = math.ceil ((hwin-1)/2)
    local k_norm = 17
    local n_chans = 1
-   
+
    function filter(n_freq, n_theta, n_phases, k_filter, kmax)
       local ret = nn.Sequential()
       local n_filters = n_freq*n_theta*n_phases
@@ -57,7 +57,7 @@ function opticalFlowFastBM(hwin, wwin, filtersp)
       image.display(fil.weight)
       return ret, n_filters
    end
-   
+
    local filters = nn.Sequential()
    filters:add(nn.SpatialContrastiveNormalization(n_chans,
 						  image.gaussian1D(k_norm)))
@@ -72,7 +72,7 @@ function opticalFlowFastBM(hwin, wwin, filtersp)
    end
    filters:add(nn.JoinTable(1))
    filters:add(nn.Binarizer(0.1))
-   
+
    local hpad = filtersp[#filtersp][4]
    local wpad = filtersp[#filtersp][4]
    local matcher = nn.BinaryMatching(hwin, wwin,
@@ -159,7 +159,7 @@ function computeOpticalFlowFastBM(im1, im2, normalize)
 						     image.gaussian1D(k_norm)))
    end
    filter1:add(filters)
-   
+
    local filter2 = nn.Sequential()
    if normalize then
       filter2:add(nn.SpatialContrastiveNormalization(n_chans,
@@ -189,7 +189,7 @@ function computeOpticalFlowFastBM(im1, im2, normalize)
       im2filtered = filter2:forward(im2)
    end
    print("toc filter", timer:time()['real'])
-   
+
    if full then
       local output = matcher:forward{im1filtered, im2filtered}
       output = output:resize(output:size(1), output:size(2), hwin*wwin);
@@ -207,7 +207,7 @@ function computeOpticalFlowFastBM(im1, im2, normalize)
    end
 
    -- AGAIN, now it's hot
-   
+
    if n_chans == 1 then
       im1filtered = filter1:forward(image.rgb2y(im1))
       timer = torch.Timer()
@@ -218,7 +218,7 @@ function computeOpticalFlowFastBM(im1, im2, normalize)
       im2filtered = filter2:forward(im2)
    end
    print("toc filter", timer:time()['real'])
-   
+
    if full then
       local output = matcher:forward{im1filtered, im2filtered}
       output = output:resize(output:size(1), output:size(2), hwin*wwin);
@@ -238,4 +238,4 @@ function computeOpticalFlowFastBM(im1, im2, normalize)
    end
 
 end
-   
+
