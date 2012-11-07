@@ -203,7 +203,7 @@ static int BinaryMatching(lua_State *L) {
       for (dy = dymin; dy < dymax; ++dy)
 	for (dx = dxmin; dx < dxmax; ++dx) {
 	  sum = 0;
-	  for (k = 0; k < 2; ++k)
+	  for (k = 0; k < K; ++k)
 	    sum += __builtin_popcountl(i1p[y*i1s[0]+x*i1s[1]+k*i1s[2]] ^
 				       i2p[(y+dy)*i2s[0]+(x+dx)*i2s[1]+k*i2s[2]]);
 	  if (sum < bestsum) {
@@ -340,6 +340,14 @@ static int SizeofLong(lua_State *L) {
   lua_pushinteger(L, sizeof(long));
   return 1;
 }
+static int UseNeon(lua_State *L) {
+#ifdef __NEON__
+  lua_pushboolean(L, 1);
+#else
+  lua_pushboolean(L, 0);
+#endif
+  return 0;
+}
 
 static const struct luaL_reg libmatching[] = {
   {"binarize", Binarize},
@@ -347,6 +355,7 @@ static const struct luaL_reg libmatching[] = {
   {"medianFilter", MedianFilter},
   {"merge", Merge},
   {"sizeofLong", SizeofLong},
+  {"useNeon", UseNeon},
   {NULL, NULL}
 };
 

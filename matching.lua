@@ -10,11 +10,17 @@ function Binarizer:__init(threshold)
    self.output = torch.LongTensor()
    self.threshold = threshold
    self.wordsize = libmatching.sizeofLong()*8
+   self.useNeon = libmatching.useNeon()
 end
 
 function Binarizer:updateOutput(input)
-   assert(math.ceil(2*input:size(1)/self.wordsize)<=2)
-   local k = 2
+   local k
+   if self.useNeon then
+      assert(math.ceil(2*input:size(1)/self.wordsize)<=2)
+      k = 2 -- k is hardcoded to 2 when using neon (for now)
+   else
+      k = math.ceil(2*input:size(1)/self.wordsize)
+   end
    self.output:resize(input:size(2), input:size(3), k):zero()
    libmatching.binarize(input, self.output, self.threshold)
    return self.output
