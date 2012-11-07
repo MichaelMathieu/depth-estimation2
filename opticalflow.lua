@@ -54,7 +54,7 @@ function opticalFlowFastBM(hwin, wwin, filtersp)
 	    end
 	 end
       end
-      image.display(fil.weight)
+      --image.display(fil.weight)
       return ret, n_filters
    end
 

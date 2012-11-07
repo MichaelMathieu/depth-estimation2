@@ -7,13 +7,16 @@ ifeq (${ARCH}, __ARM__)
 FLAGS+= -mfpu=neon
 endif
 
-all: oextract
+all: match
 
 .cpp.o:
 	${CXX} -D${ARCH} ${FLAGS} -c $< -o $@
 
-oextract: matching.cpp matching.o
+match: matching.cpp matching.o
 	${CXX} ${FLAGS} matching.o ${LIBS} -shared -o libmatching.so
 
+filter: filtering.cpp filtering.o
+	${CXX} ${FLAGS} filtering.o ${LIBS} -shared -o libfiltering.so
+
 clean:
-	rm -rf libmatching.so matching.o
+	rm -rf libmatching.so matching.o filtering.o libfiltering.so

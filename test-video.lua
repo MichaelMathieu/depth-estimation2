@@ -31,6 +31,30 @@ local filtersp2 = {
 local filters, matcher, n1 = opticalFlowFastBM(hwin, wwin, filtersp1)
 local filters2, matcher2, n2 = opticalFlowFastBM(hwin, wwin, filtersp2)
 
+
+require 'filtering'
+   local filters0= torch.LongTensor{{ 0, 0, 8, 8,   8, 8,16,16},
+				    { 8, 0,16, 8,   0, 8, 8,16},
+				    { 0, 0, 8,16,   8, 0,16,16},
+				    { 0, 0,16, 8,   0, 8,16,16},
+
+				    { 4, 4, 8, 8,   8, 8,12,12},
+				    { 8, 4,12, 8,   4, 8, 8,12},
+				    { 4, 0, 8,16,   8, 0,12,16},
+				    { 0, 4,16, 8,   0, 8,16,12},
+
+				    { 0, 0, 4,16,   4, 0, 8,16},
+				    { 8, 0,12,16,  12, 0,16,16},
+				    { 0, 0,16, 4,   0, 4,16, 8},
+				    { 0, 8,16,12,   0,12,16,16},
+				 }
+filters = nn.Sequential()
+filters:add(nn.SpatialContrastiveNormalization(n_chans,
+						  image.gaussian1D(k_norm)))
+filters:add(nn.BlockFilter(filters0))
+filters2 = filters:clone()
+
+
 function loadImgFile(i)
    return image.rgb2y(image.scale(image.load(string.format("data/%09d.jpg", i)),
 				  320, 180, 'bilinear'))
@@ -71,7 +95,7 @@ while true do
    meantfilter = nfilter/(nfilter+1)*meantfilter + timer:time()['real']/(nfilter+1)
    nfilter = nfilter + 1
    print("toc filters : ", timer:time()['real'])
-   --print("mean   filters : ", meantfilter)
+   print("mean   filters : ", meantfilter)
    local flow1, score1 = matcher:forward{im1filtered, im2filtered}
    local flow2, score2 = matcher2:forward{im1filtered2, im2filtered2}
    score1:mul(n2)
