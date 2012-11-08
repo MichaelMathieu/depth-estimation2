@@ -16,12 +16,15 @@ typedef double accreal;
 typedef unsigned char byte;
 typedef unsigned short uint16;
 
-//#define TWO_BITS_PER_FILTER
+#define TWO_BITS_PER_FILTER
 
 #ifdef __ARM__
 #define __NEON__
 #endif
 //#define _FILTER32
+#ifndef __ARM__
+#define _FILTER32
+#endif
 
 static int Binarize(lua_State *L) {
   const char* idreal = ID_TENSOR_STRING;
