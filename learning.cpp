@@ -185,15 +185,9 @@ void displayFilters(const vector<Filter> & filters) {
 
 int main (int argc, char* argv[]) {
   if (argc < 2) {
-    cerr << "Usage: " << argv[0] << " imagename" << endl;
+    cerr << "Usage: " << argv[0] << " imagename[s]" << endl;
     return -1;
   }
-  matf im0 = loadImage(argv[1]);
-  matf im;
-  resize(im0, im, Size(180, 240));
-  //displayImage(im);
-  //TODO normalize
-
   vector<int> X, Y;
   X.push_back(0);
   X.push_back(4);
@@ -207,10 +201,16 @@ int main (int argc, char* argv[]) {
   Y.push_back(16);
   vector<Filter> filters = generateFilters(X, Y);
   cout << filters.size() << " possible filters" << endl;
-  
-  vector<Match> pixels = filterImage(im, filters);
-  cout << "filtered" << endl;
-  //for (int i = 0; i < pixels.size(); ++i) cout << pixels[i] << endl;
+
+  vector<Match> pixels;
+  for (int i = 1; i < argc; ++i) {
+    matf im0 = loadImage(argv[i]);
+    matf im;
+    resize(im0, im, Size(180, 240));
+    vector<Match> pixels1 = filterImage(im, filters);
+    pixels.insert(pixels.end(), pixels1.begin(), pixels1.end());
+    cout << "Image " << argv[i] << " filtered" << endl;
+  }
 
   vector<int> selected = selectFilters(pixels, 32, 0.7);
   

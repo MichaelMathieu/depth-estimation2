@@ -5,19 +5,72 @@ require 'image'
 require 'matching'
 require 'prettydisplay'
 require 'framegrabber'
+require 'filtering'
 
 local hwin = 10
 local wwin = 16
-local filtersp1 = {
-   {2,4,2,16},
-   --{1,2,1,32},
-}
-local filtersp2 = {
-   {2,4,2,16},
 
+local filters0 = torch.LongTensor{
+   {0, 4, 8, 8, 12, 4, 16, 12},
+   {12, 4, 16, 8, 0, 0, 4, 4},
+   {4, 0, 12, 4, 8, 0, 16, 4},
+   {8, 0, 12, 8, 12, 0, 16, 8},
+   {12, 4, 16, 12, 4, 4, 12, 8},
+   {4, 12, 12, 16, 0, 8, 4, 16},
+   {8, 8, 12, 12, 12, 8, 16, 12},
+   {12, 8, 16, 12, 0, 4, 4, 8},
+   {0, 8, 4, 16, 8, 12, 16, 16},
+   {0, 8, 16, 12, 0, 0, 4, 16},
+   {8, 12, 12, 16, 12, 12, 16, 16},
+   {12, 0, 16, 8, 4, 0, 12, 4},
+   {12, 12, 16, 16, 0, 8, 4, 12},
+   {12, 8, 16, 16, 4, 8, 12, 12},
+   {4, 0, 8, 4, 8, 0, 12, 4},
+   {4, 8, 12, 12, 0, 4, 4, 12},
+   {0, 8, 8, 12, 12, 8, 16, 16},
+   {4, 4, 8, 8, 8, 4, 12, 8},
+   {12, 0, 16, 16, 0, 4, 16, 8},
+   {4, 4, 12, 8, 0, 0, 4, 8},
+   {0, 4, 4, 12, 8, 8, 16, 12},
+   {0, 4, 16, 12, 4, 0, 12, 16},
+   {0, 8, 8, 12, 8, 8, 12, 16},
+   {8, 4, 16, 12, 12, 0, 16, 16},
+   {0, 0, 4, 4, 4, 0, 8, 4},
+   {8, 4, 16, 8, 4, 0, 8, 8},
+   {0, 4, 12, 8, 4, 0, 8, 12},
+   {0, 0, 4, 8, 8, 4, 16, 8},
+   {4, 8, 8, 12, 8, 8, 12, 12},
+   {0, 4, 8, 8, 8, 4, 12, 12},
+   {4, 4, 16, 8, 8, 0, 12, 12},
+   {8, 0, 12, 16, 0, 4, 16, 8},
 }
-local filters, matcher, n1 = opticalFlowFastBM(hwin, wwin, filtersp1)
-local filters2, matcher2, n2 = opticalFlowFastBM(hwin, wwin, filtersp2)
+
+--[[
+local filters0= torch.LongTensor{{ 0, 0, 8, 8,   8, 8,16,16},
+				 { 8, 0,16, 8,   0, 8, 8,16},
+				 { 0, 0, 8,16,   8, 0,16,16},
+				 { 0, 0,16, 8,   0, 8,16,16},
+				 
+				 { 4, 4, 8, 8,   8, 8,12,12},
+				 { 8, 4,12, 8,   4, 8, 8,12},
+				 { 4, 0, 8,16,   8, 0,12,16},
+				 { 0, 4,16, 8,   0, 8,16,12},
+				 
+				 { 0, 0, 4,16,   4, 0, 8,16},
+				 { 8, 0,12,16,  12, 0,16,16},
+				 { 0, 0,16, 4,   0, 4,16, 8},
+				 { 0, 8,16,12,   0,12,16,16},
+			      }
+--]]
+
+local filters = nn.Sequential()
+--filters:add(nn.SpatialContrastiveNormalization(n_chans,image.gaussian1D(k_norm)))
+filters:add(nn.BlockFilter(filters0))
+local filters2 = filters:clone()
+--TODO depends on the size of the filters
+local matcher = nn.BinaryMatching(hwin, wwin, 7, 8, 7, 8)
+local matcher2 = nn.BinaryMatching(hwin, wwin, 7, 8, 7, 8)
+
 
 function loadImgFile(i)
    return image.rgb2y(image.scale(image.load(string.format("data/%09d.jpg", i)),
@@ -63,7 +116,7 @@ while true do
    print("toc match   : ", timer:time()['real'])
    --local tmed = torch.Timer()
    MergeFlow(flow1, score1, flow2, score2, flow,
-	     math.floor((hwin-1)/2), math.floor((wwin-1)/2), n1, n2)
+	     math.floor((hwin-1)/2), math.floor((wwin-1)/2), 1,1)
    --print("merge                                 ", tmed:time()['real'])
    MedianFilter(flow, 3)
    print("toc median   : ", timer:time()['real'])
@@ -82,7 +135,7 @@ while true do
    local maxflow = math.max(math.ceil((hwin-1)/2)*2,math.ceil((wwin-1)/2)*2)
    win=image.display{image=prettydisplay({{im2,norm,flow1},
 					  {flowrealdisp,flow2},
-					  {score1:real()/n2, score2b:real()/n1, select}},
+					  {score1:real(), score2b:real(),select}},
 					 {{{},{},{}},
 					  {{-maxflow,maxflow},{}},
 					  {{0,10},{0,10},{}}}),

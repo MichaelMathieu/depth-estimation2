@@ -69,8 +69,14 @@ function MedianFilter(input, k)
 end
 
 function MergeFlow(input1, input1score, input2, input2score, output,
-		   hhwin, hwwin)
+		   hhwin, hwwin, n_filters1, n_filters2)
    output:resizeAs(input1)
+   if n_filters1 ~= 1 then
+      input2score:mul(n_filters1)
+   end
+   if n_filters2 ~= 1 then
+      input1score:mul(n_filters2)
+   end
    libmatching.merge(input1, input1score, input2, input2score, output,
 		     hhwin, hwwin)
    return output
