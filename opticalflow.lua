@@ -59,8 +59,7 @@ function opticalFlowFastBM(hwin, wwin, filtersp)
    end
 
    local filters = nn.Sequential()
-   filters:add(nn.SpatialContrastiveNormalization(n_chans,
-						  image.gaussian1D(k_norm)))
+   filters:add(nn.SpatialContrastiveNormalization(n_chans, image.gaussian1D(k_norm)))
    local filtergroups = nn.ConcatTable()
    filters:add(filtergroups)
    local n_filters = 0

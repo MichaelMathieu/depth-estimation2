@@ -39,8 +39,8 @@ static int IntegralImage(lua_State *L) {
 
 inline float iimageSum(const float* iimage, const long* const is,
 		       int x1, int y1, int x2, int y2) {
-  return iimage[is[0]*y1+is[1]*x1]+iimage[is[0]*y2+is[1]*x2]
-    - iimage[is[0]*y1+is[1]*x2] - iimage[is[0]*y2+is[1]*x1];
+  return iimage[is[0]*y1+x1]+iimage[is[0]*y2+x2]
+    - iimage[is[0]*y1+x2] - iimage[is[0]*y2+x1];
 }
 
 static int FilterImage(lua_State *L) {
@@ -53,22 +53,22 @@ static int FilterImage(lua_State *L) {
   const int h = iimage->size[0]-1;
   const int w = iimage->size[1]-1;
   const int N = filters->size[0];
-  const float* ip = THFloatTensor_data(iimage );
-  const long*  fp = THLongTensor_data (filters);
-  long*        op = THLongTensor_data (output );
+  const float* const ip = THFloatTensor_data(iimage );
+  const long*  const fp = THLongTensor_data (filters);
+  long* const        op = THLongTensor_data (output );
   const long* const is = iimage->stride;
   const long* const fs = filters->stride;
   const long* const os = output->stride;
+  assert(is[1] == 1);
 
-  int i;
-#pragma omp parallel for private(i)
+  int i, j, k;
+  const long* fp0;
+#pragma omp parallel for private(i, j, k, fp0)
   for (i = 0; i < h-hmax; ++i)
-    for (int j = 0; j < w-wmax; ++j)
-      for (int k = 0; k < N; ++k) {
-	const int bit = iimageSum(ip, is, j+fp[fs[0]*k+fs[1]],i+fp[fs[0]*k],
-				  j+fp[fs[0]*k+3*fs[1]],i+fp[fs[0]*k+2*fs[1]])
-	  > iimageSum(ip, is, j+fp[fs[0]*k+5*fs[1]],i+fp[fs[0]*k+4*fs[1]],
-		      j+fp[fs[0]*k+7*fs[1]],i+fp[fs[0]*k+6*fs[1]]);
+    for (j = 0; j < w-wmax; ++j)
+      for (fp0 = fp, k=0; k < N; fp0 += fs[0], ++k) {
+	const int bit = iimageSum(ip, is, j+fp0[1],i+fp0[0], j+fp0[3],i+fp0[2])
+	  > iimageSum(ip, is, j+fp0[5],i+fp0[4], j+fp0[7],i+fp0[6]);
 	  op[i*os[0]+j*os[1]] |= bit << k;
       }
 

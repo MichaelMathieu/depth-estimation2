@@ -49,8 +49,8 @@ require 'filtering'
 				    { 0, 8,16,12,   0,12,16,16},
 				 }
 filters = nn.Sequential()
-filters:add(nn.SpatialContrastiveNormalization(n_chans,
-						  image.gaussian1D(k_norm)))
+--filters:add(nn.SpatialContrastiveNormalization(n_chans,
+--						  image.gaussian1D(k_norm)))
 filters:add(nn.BlockFilter(filters0))
 filters2 = filters:clone()
 
