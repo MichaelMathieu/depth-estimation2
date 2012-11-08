@@ -38,7 +38,7 @@ end
 function filtering_testme()
    torch.setdefaulttensortype('torch.FloatTensor')
    local a = image.lena()[1]
-   --[[
+
    local filters = torch.LongTensor{{ 0, 0, 8, 8,   8, 8,16,16},
 				    { 8, 0,16, 8,   0, 8, 8,16},
 				    { 0, 0, 8,16,   8, 0,16,16},
@@ -55,7 +55,7 @@ function filtering_testme()
 				    { 0, 8,16,12,   0,12,16,16},
 				    
 				 }
-   --]]
+--[[
    local filters = torch.LongTensor{
       {12, 0, 16, 16, 8, 4, 16, 12},
       {4, 0, 8, 12, 0, 4, 12, 8},
@@ -90,7 +90,7 @@ function filtering_testme()
       {12, 8, 16, 16, 0, 12, 8, 16},
       {8, 4, 12, 16, 0, 8, 12, 12},
    }
-   
+   --]]
    local filter = nn.BlockFilter(filters)
    filter:forward(a)
 end
