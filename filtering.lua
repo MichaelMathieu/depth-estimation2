@@ -53,7 +53,7 @@ function filtering_testme()
 				    { 8, 0,12,16,  12, 0,16,16},
 				    { 0, 0,16, 4,   0, 4,16, 8},
 				    { 0, 8,16,12,   0,12,16,16},
-				    
+
 				 }
 --[[
    local filters = torch.LongTensor{

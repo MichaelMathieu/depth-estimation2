@@ -16,10 +16,12 @@ typedef double accreal;
 typedef unsigned char byte;
 typedef unsigned short uint16;
 
-#define TWO_BITS_PER_FILTER
+//#define TWO_BITS_PER_FILTER
+
 #ifdef __ARM__
 #define __NEON__
 #endif
+//#define _FILTER32
 
 static int Binarize(lua_State *L) {
   const char* idreal = ID_TENSOR_STRING;
@@ -89,21 +91,32 @@ static int BinaryMatching(lua_State *L) {
   const long* const os  = output->stride;
   const long* const oss = outputscore->stride;
 
+  //printf("%d, %d, %d\n", i1s[0], i1s[1], i1s[2]);
+  //printf("%d, %d, %d\n", i2s[0], i2s[1], i2s[2]);
+
+#ifdef _FILTER32
   int bestsum, sum;
   int bestdx = 0, bestdy = 0;
   int x, y, dx, dy, k;
   int dxmin=0, dxmax=wmax, dymin=0, dymax=hmax;
-
+#else
+  int bestsum[2], sum[2];
+  int bestdx[2], bestdy[2];
+  int x, y, dx, dy, k;
+  int dxmin=0, dxmax=wmax, dymin=0, dymax=hmax;
+#endif
 #ifdef __NEON__
 
 #pragma omp parallel for private(y, x, dy, dx, sum, k, bestsum) firstprivate(bestdx, bestdy,dxmin,dxmax,dymin,dymax)
   for (y = 0; y < h; ++y) {
     if (y < 3*h/5) dymax = 3*hmax/5; else dymax = hmax;
     if (y > 2*h/5) dymin = 2*hmax/5; else dymin = 0;
+#ifdef _FILTER32
     for (x = 0; x < w; ++x) {
       if (x < 3*w/5) dxmax = 3*wmax/5; else dxmax = wmax;
       if (x > 2*w/5) dxmin = 2*wmax/5; else dxmin = 0;
       bestsum = 127;
+
       for (dy = dymin; dy < dymax; ++dy){
         char max_array[16];
         int *argptr[3];
@@ -187,8 +200,110 @@ static int BinaryMatching(lua_State *L) {
       op [os[0]+y*os [1]+x*os [2]] = bestdx;
       osp[      y*oss[0]+x*oss[1]] = bestsum;
       // printf("bsum: %d\tdx:%d\tdy:%d\n",bestsum, bestdx, bestdy);
+#else
+      for (x = 0; x < w; x=x+2) {
+        if (x < 3*w/5) dxmax = 3*wmax/5; else dxmax = wmax;
+        if (x > 2*w/5) dxmin = 2*wmax/5; else dxmin = 0;
+        bestsum[0] = 127;
+        bestsum[1] = 127;
+        for (dy = dymin; dy < dymax; ++dy){
+          char max_array[2][16];
+          int *argptr[4];
+          argptr[0] = (int *)(i1p + (y*i1s[0]+x*i1s[1]) );
+          argptr[1] = (int *)(i2p + ((y+dy)*i2s[0]+x*i2s[1]) );
+          argptr[2] = (int *)&max_array[0];
+          argptr[3] = (int *)&max_array[1];
+          //argptr[3] = &dxmax;
+          __asm__ __volatile__ (
+            "ldr         r0, [%0]         @ Load src ptr \n\t"
+            "ldr         r1, [%0, #4]     @ Load src2 ptr \n\t"
+            "ldr         r2, [%0, #8]     @ Load dst ptr px1\n\t"
+            "ldr         r3, [%0, #12]    @ Load dst ptr px2\n\t"
+            "vld1.32     d0[0], [r0]!        @ Load src1 px0\n\t"
+            "vld1.32     d2[0], [r0]      @ Load src1 px1\n\t"
+            "vdup.32     q0, d0[0]        @ duplicate px0 in Q0\n\t"
+            "vld1.32     {d4-d5}, [r1]!   @ Load src2 dx[0,3]\n\t"
+            "vld1.32     {d6-d7}, [r1]!   @ Load src2 dx[4,7]\n\t"
+            "vdup.32     q1, d2[0]        @ duplicate px1 in Q1\n\t"
+            "vld1.32     {d8-d9}, [r1]!   @ Load src2 dx[8,11]\n\t"
+            "vld1.32     {d10-d11}, [r1]! @ Load src2 dx[12,15]\n\t"
+            "veor.32     q6, q1, q2       @ ExOR px1 dx[0,3]\n\t"
+            "veor.32     q7, q1, q3       @ ExOR px1 dx[4,7]\n\t"
+            "veor.32     q8, q1, q4       @ ExOR px1 dx[8,11]\n\t"
+            "veor.32     q9, q1, q5       @ ExOR px1 dx[12,15]\n\t"
+            "veor.32     q2, q0, q2       @ ExOR px0 dx[0,3]\n\t"
+            "veor.32     q3, q0, q3       @ ExOR px0 dx[4,7]\n\t"
+            "veor.32     q4, q0, q4       @ ExOR px0 dx[8,11]\n\t"
+            "veor.32     q5, q0, q5       @ ExOR px0 dx[12,15]\n\t"
+            "vcnt.i8     q6, q6           @ cnt bit px1 dx[0,3]  \n\t"
+            "vcnt.i8     q7, q7           @ cnt bit px1 dx[4,7]  \n\t"
+            "vcnt.i8     q8, q8           @ cnt bit px1 dx[8,11] \n\t"
+            "vcnt.i8     q9, q9           @ cnt bit px1 dx[12,15]\n\t"
+            "vcnt.i8     q2, q2           @ cnt bit px0 dx[0,3]\n\t"
+            "vcnt.i8     q3, q3           @ cnt bit px0 dx[4,7]\n\t"
+            "vcnt.i8     q4, q4           @ cnt bit px0 dx[8,11]\n\t"
+            "vcnt.i8     q5, q5           @ cnt bit px0 dx[12,15]\n\t"
+            "vpadd.i8    d12, d12, d13    @ sum 8 bits px1 dx[0,3]  \n\t"
+            "vpadd.i8    d14, d14, d15    @ sum 8 bits px1 dx[4,7]  \n\t"
+            "vpadd.i8    d16, d16, d17    @ sum 8 bits px1 dx[8,11] \n\t"
+            "vpadd.i8    d18, d18, d19    @ sum 8 bits px1 dx[12,15]\n\t"
+            "vpadd.i8    d4,  d4,  d5     @ sum 8 bits px0 dx[0,3]  \n\t"
+            "vpadd.i8    d6,  d6,  d7     @ sum 8 bits px0 dx[4,7]  \n\t"
+            "vpadd.i8    d8,  d8,  d9     @ sum 8 bits px0 dx[8,11] \n\t"
+            "vpadd.i8    d10, d10, d11    @ sum 8 bits px0 dx[12,15]\n\t"
+            "vpadd.i8    d12, d12, d14    @ sum 8 bits px1 dx[0,7]  \n\t"
+            "vpadd.i8    d13, d16, d18    @ sum 8 bits px1 dx[8,15] \n\t"
+            "vpadd.i8    d4,  d4,  d6     @ sum 8 bits px0 dx[0,7]  \n\t"
+            "vpadd.i8    d5,  d8,  d10    @ sum 8 bits px0 dx[8,15] \n\t"
+            "vst1.8      {d12-d13}, [r3]  @ Store result px1 \n\t"
+            "vst1.8      {d4-d5},   [r2]  @ Store result px0 \n\t"
+            "@vst1.8      {d2-d3}, [r3]  @ Store result px1 \n\t"
+            "@vst1.8      {d0-d1},   [r2]  @ Store result px0 \n\t"
+            :
+            :"r" (argptr)
+            : "cc", "r0", "r1", "r2", "r3", "memory",
+              "q0", "q1", "q1", "q2", "q3", "q4", "q5", "q6", "q7",
+              "q8", "q9", "q10", "q11", "q12", "q13", "q14", "q15",
+              "d0", "d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9", "d10", "d11",
+              "d12", "d13", "d14", "d15","d16", "d17", "d18", "d19",
+              "d20", "d21", "d22", "d23", "d24", "d25", "d26", "d27","d28", "d29", "d30", "d31"
+            );
+          // printf("max array: %u %u %u %u %u %u %u %u %u %u %u %u %u %u %u %u\n",
+          //        max_array[0][0], max_array[0][1], max_array[0][2], max_array[0][3],
+          //        max_array[0][4], max_array[0][5], max_array[0][6], max_array[0][7],
+          //        max_array[0][8], max_array[0][9], max_array[0][10], max_array[0][11],
+          //        max_array[0][12], max_array[0][13], max_array[0][14], max_array[0][15]);
+          // printf("max array: %u %u %u %u %u %u %u %u %u %u %u %u %u %u %u %u\n",
+          //        max_array[1][0], max_array[1][1], max_array[1][2], max_array[1][3],
+          //        max_array[1][4], max_array[1][5], max_array[1][6], max_array[1][7],
+          //        max_array[1][8], max_array[1][9], max_array[1][10], max_array[1][11],
+          //        max_array[1][12], max_array[1][13], max_array[1][14], max_array[1][15]);
+
+          for (dx = dxmin; dx < dxmax; ++dx) {
+            if (max_array[0][dx] < bestsum[0]) {
+              bestsum[0] = max_array[0][dx];
+              bestdx[0] = dx;
+              bestdy[0] = dy;
+            }
+            if (max_array[1][dx] < bestsum[1]) {
+              bestsum[1] = max_array[1][dx];
+              bestdx[1] = dx;
+              bestdy[1] = dy;
+            }
+          }
+
+          // printf("bsumx: %d\tdx:%d\tdy:%d\n",bestsum[0], bestdx[0], bestdy[0]);
+        }
+        op [      y*os [1]+x*os [2]] = bestdy[0];
+        op [os[0]+y*os [1]+x*os [2]] = bestdx[0];
+        osp[      y*oss[0]+x*oss[1]] = bestsum[0];
+        op [      y*os [1]+(x+1)*os [2]] = bestdy[1];
+        op [os[0]+y*os [1]+(x+1)*os [2]] = bestdx[1];
+        osp[      y*oss[0]+(x+1)*oss[1]] = bestsum[1];
+        // printf("bsum: %d\tdx:%d\tdy:%d\n",bestsum, bestdx, bestdy);
+#endif
+      }
     }
-  }
 
 #else // __NEON__
 

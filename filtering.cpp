@@ -29,7 +29,7 @@ static int IntegralImage(lua_State *L) {
   float* op = THFloatTensor_data(output);
   const long* const is = input->stride;
   const long* const os = output->stride;
-  
+
   const matf input_cv(h, w, ip, is[0]*sizeof(float));
   matf output_cv(h+1, w+1, op, os[0]*sizeof(float));
   cv::integral(input_cv, output_cv, CV_32F);
@@ -37,10 +37,10 @@ static int IntegralImage(lua_State *L) {
   return 0;
 }
 
-inline float iimageSum(const float* iimage, const long* const is,
+inline float iimageSum(const float* iimage, long is,
 		       int x1, int y1, int x2, int y2) {
-  return iimage[is[0]*y1+x1]+iimage[is[0]*y2+x2]
-    - iimage[is[0]*y1+x2] - iimage[is[0]*y2+x1];
+  return iimage[is*y1+x1]+iimage[is*y2+x2]
+    - iimage[is*y1+x2] - iimage[is*y2+x1];
 }
 
 static int FilterImage(lua_State *L) {
@@ -63,14 +63,17 @@ static int FilterImage(lua_State *L) {
 
   int i, j, k;
   const long* fp0;
-#pragma omp parallel for private(i, j, k, fp0)
-  for (i = 0; i < h-hmax; ++i)
-    for (j = 0; j < w-wmax; ++j)
+  long* op0;
+#pragma omp parallel for private(i, j, k, fp0, op0)
+  for (i = 0; i < h-hmax; ++i) {
+    op0 = op + i*os[0];
+    for (j = 0; j < w-wmax; ++j, op0 += os[1])
       for (fp0 = fp, k=0; k < N; fp0 += fs[0], ++k) {
-	const int bit = iimageSum(ip, is, j+fp0[1],i+fp0[0], j+fp0[3],i+fp0[2])
-	  > iimageSum(ip, is, j+fp0[5],i+fp0[4], j+fp0[7],i+fp0[6]);
-	  op[i*os[0]+j*os[1]] |= bit << k;
+	const int bit = iimageSum(ip, is[0], j+fp0[1],i+fp0[0], j+fp0[3],i+fp0[2])
+	  > iimageSum(ip, is[0], j+fp0[5],i+fp0[4], j+fp0[7],i+fp0[6]);
+        *op0 |= bit << k;
       }
+  }
 
   return 0;
 }
