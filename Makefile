@@ -7,7 +7,7 @@ ifeq (${ARCH}, __ARM__)
 FLAGS+= -mfpu=neon
 endif
 
-all: match
+all: match filter
 
 .cpp.o:
 	${CXX} -D${ARCH} ${FLAGS} -c $< -o $@
