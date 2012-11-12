@@ -40,12 +40,13 @@ static int Binarize(lua_State *L) {
   long* op = THLongTensor_data(output);
   const long* const is = input->stride;
   const long* const os = output->stride;
+  cout << N << " " << sizeof(long) << " " << output->size[2] << endl;
 
   int longSize = sizeof(long)*8;
   long* const op0 = op;
   const Real* iendh, *iendw, *const ip0 = ip;
   int shift, k;
-#pragma omp parallel for private(iendh, iendw, shift, ip, op)
+//#pragma omp parallel for private(k, iendh, iendw, shift, ip, op)
   for (k = 0; k < N; ++k) {
 #ifdef TWO_BITS_PER_FILTER
     op = op0 + (2*k/longSize)*os[2];
@@ -60,7 +61,9 @@ static int Binarize(lua_State *L) {
       iendw = ip + w*is[2];
       while (ip != iendw) {
 	*op |= (((*ip) > threshold) << shift);
+#ifdef TWO_BITS_PER_FILTER
 	*op |= (((*ip) < -threshold) << (shift+1));
+#endif
 	ip += is[2];
 	op += os[1];
       }
@@ -110,7 +113,7 @@ static int BinaryMatching(lua_State *L) {
 #endif
 #ifdef __NEON__
 
-#pragma omp parallel for private(y, x, dy, dx, sum, k, bestsum) firstprivate(bestdx, bestdy,dxmin,dxmax,dymin,dymax)
+//#pragma omp parallel for private(y, x, dy, dx, sum, k, bestsum) firstprivate(bestdx, bestdy,dxmin,dxmax,dymin,dymax)
   for (y = 0; y < h; ++y) {
     if (y < 3*h/5) dymax = 3*hmax/5; else dymax = hmax;
     if (y > 2*h/5) dymin = 2*hmax/5; else dymin = 0;
@@ -310,7 +313,7 @@ static int BinaryMatching(lua_State *L) {
 
 #else // __NEON__
 
-#pragma omp parallel for private(y, x, dy, dx, sum, k, bestsum) firstprivate(bestdx, bestdy, dxmin, dxmax, dymin, dymax)
+//#pragma omp parallel for private(y, x, dy, dx, sum, k, bestsum) firstprivate(bestdx, bestdy, dxmin, dxmax, dymin, dymax)
   for (y = 0; y < h; ++y) {
     if (y < 3*h/5) dymax = 3*hmax/5; else dymax = hmax;
     if (y > 2*h/5) dymin = 2*hmax/5; else dymin = 0;
@@ -425,7 +428,7 @@ static int Merge(lua_State *L) {
   int c, i;
   const int wincr = (w/2)*2*i1ss[1];
 #ifdef __ARM__
-#pragma omp parallel for private(i1sp, i1spend, i2sp, i1p, i2p, op, c)
+//#pragma omp parallel for private(i1sp, i1spend, i2sp, i1p, i2p, op, c)
 #endif
   for (i = 0; i < h; ++i) {
     i1sp = i1sp0 + i*i1ss[0];

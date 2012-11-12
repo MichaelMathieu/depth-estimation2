@@ -101,6 +101,7 @@ local nfilter = 0
 local totaltime = 0
 
 while true do
+   sys.execute('sleep 1')
    i_img = i_img + 1
    local im2 = loadImg(i_img)
    local im22 = image.scale(im2, im1:size(3)/2, im1:size(2)/2)

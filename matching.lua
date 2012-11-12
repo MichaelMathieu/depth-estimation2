@@ -15,12 +15,9 @@ end
 
 function Binarizer:updateOutput(input)
    local k
-   if self.useNeon then
-      assert(math.ceil(2*input:size(1)/self.wordsize)<=2)
-      k = 2 -- k is hardcoded to 2 when using neon (for now)
-   else
-      k = math.ceil(2*input:size(1)/self.wordsize)
-   end
+   --TODO: the 2 is only valid when TWO_BITS_PER_FILTER is defined
+   -- (otherwise, it is still correct, but slower)
+   k = math.ceil(2*input:size(1)/self.wordsize)
    self.output:resize(input:size(2), input:size(3), k):zero()
    libmatching.binarize(input, self.output, self.threshold)
    return self.output
