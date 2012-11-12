@@ -19,7 +19,7 @@ typedef unsigned short uint16;
 #define TWO_BITS_PER_FILTER
 
 #ifdef __ARM__
-#define __NEON__
+//#define __NEON__
 #endif
 
 static int Binarize(lua_State *L) {
@@ -56,9 +56,9 @@ static int Binarize(lua_State *L) {
     while (ip != iendh) {
       iendw = ip + w*is[2];
       while (ip != iendw) {
-	*op |= (((*ip) > threshold) << shift);
+	*op |= ((long)(((*ip) > threshold)) << shift);
 #ifdef TWO_BITS_PER_FILTER
-	*op |= (((*ip) < -threshold) << (shift+1));
+	*op |= ((long)(((*ip) < -threshold)) << (shift+1));
 #endif
 	ip += is[2];
 	op += os[1];
@@ -95,11 +95,6 @@ static int BinaryMatching(lua_State *L) {
 
   int x, y, dx, dy, k;
   int dxmin=0, dxmax=wmax, dymin=0, dymax=hmax;
-
-  cout << "i1s "<< i1s[0] << " " << i1s[1] << " " << i1s[2]<<endl;
-  cout << "i2s " <<i2s[0] << " " << i2s[1] << " " << i2s[2]<<endl;
-  cout << "os " <<os[0] << " " << os[1] << " " << os[2]<<endl;
-  cout << "oss " <<oss[0] << " " << oss[1] << " " << oss[2]<<endl;
 
 #ifdef __NEON__
 
@@ -318,13 +313,14 @@ static int BinaryMatching(lua_State *L) {
     for (x = 0; x < w; ++x) {
       if (x < 3*w/5) dxmax = 3*wmax/5; else dxmax = wmax;
       if (x > 2*w/5) dxmin = 2*wmax/5; else dxmin = 0;
-      bestsum = 2000000000;
+      bestsum = 127;
       for (dy = dymin; dy < dymax; ++dy)
 	for (dx = dxmin; dx < dxmax; ++dx) {
 	  sum = 0;
-	  for (k = 0; k < K; ++k)
+	  for (k = 0; k < K; ++k) {
 	    sum += __builtin_popcountl(i1p[y*i1s[0]+x*i1s[1]+k*i1s[2]] ^
-				       i2p[(y+dy)*i2s[0]+(x+dx)*i2s[1]+k*i2s[2]]);
+	    			       i2p[(y+dy)*i2s[0]+(x+dx)*i2s[1]+k*i2s[2]]);
+	  }
 	  if (sum < bestsum) {
 	    bestsum = sum;
 	    bestdx = dx;

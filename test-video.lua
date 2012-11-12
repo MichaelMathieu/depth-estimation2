@@ -55,7 +55,7 @@ while true do
    timer:reset()
    local im2filtered = filters:forward(im2)
    local im2filtered2 = filters2:forward(im22)
-   meantfilter = nfilter/(nfilter+1)*meantfilter + timer:time()['real']/(nfilter+1)
+   meantfilter = nfilter/(nfilter+1)*meantfilter+timer:time()['real']/(nfilter+1)
    nfilter = nfilter + 1
    print("toc filters : ", timer:time()['real'])
    print("mean   filters : ", meantfilter)
