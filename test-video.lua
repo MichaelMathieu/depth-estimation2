@@ -10,13 +10,10 @@ local hwin = 10
 local wwin = 16
 local filtersp1 = {
    {2,4,2,16},
-   {2,4,2,16},
    --{1,2,1,32},
 }
 local filtersp2 = {
    {2,4,2,16},
-   {2,4,2,16},
-
 }
 local filters, matcher, n1 = opticalFlowFastBM(hwin, wwin, filtersp1)
 local filters2, matcher2, n2 = opticalFlowFastBM(hwin, wwin, filtersp2)

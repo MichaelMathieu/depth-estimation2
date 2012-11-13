@@ -19,7 +19,7 @@ typedef unsigned short uint16;
 #define TWO_BITS_PER_FILTER
 
 #ifdef __ARM__
-//#define __NEON__
+#define __NEON__
 #endif
 
 static int Binarize(lua_State *L) {
