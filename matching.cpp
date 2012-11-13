@@ -36,13 +36,13 @@ static int Binarize(lua_State *L) {
   long* op = THLongTensor_data(output);
   const long* const is = input->stride;
   const long* const os = output->stride;
-  cout << N << " " << sizeof(long) << " " << output->size[2] << endl;
+  const int longSize = sizeof(long)*8;
 
-  int longSize = sizeof(long)*8;
+#if 0
   long* const op0 = op;
   const Real* iendh, *iendw, *const ip0 = ip;
   int shift, k;
-  //#pragma omp parallel for private(k, iendh, iendw, shift, ip, op)
+#pragma omp parallel for private(k, iendh, iendw, shift, ip, op) shared(threshold)
   for (k = 0; k < N; ++k) {
 #ifdef TWO_BITS_PER_FILTER
     op = op0 + (2*k/longSize)*os[2];
@@ -67,6 +67,49 @@ static int Binarize(lua_State *L) {
       op += os[0] - w*os[1];
     }
   }
+#endif
+
+  long* const op0 = op;
+  const Real *iendw, *const ip0 = ip;
+  int i, k, byt, Nmax;
+#ifdef TWO_BITS_PER_FILTER
+  const int N2 = N*2;
+#else
+  const int N2 = N;
+#endif
+  const int K = (N2+longSize-1)/longSize;//ceil
+#pragma omp parallel for private(byt, Nmax)
+  for (byt = 0; byt < K; ++byt) {
+    Nmax = min(longSize, N2 - byt*longSize);
+#pragma omp parallel for private(i, iendw, ip, op, k) shared(threshold, byt, Nmax)
+    for (i = 0; i < h; ++i) {
+#ifdef TWO_BITS_PER_FILTER
+      ip = ip0 + i*is[1]+ byt*longSize/2*is[0];
+      iendw = ip + w*is[2];
+      op = op0 + i*os[0] + byt*os[2];
+      while(ip != iendw) {
+        for (k = 0; k < Nmax; k += 2) {
+          *op |= ((long)((*ip) > threshold)) << k;
+          *op |= ((long)((*ip) < -threshold)) << (k+1);
+          ip += is[0];
+        }
+        op += os[1];
+        ip += is[2] - Nmax/2*is[0];
+#else
+      ip = ip0 + i*is[1]+ byt*longSize*is[0];
+      iendw = ip + w*is[2];
+      op = op0 + i*os[0] + byt*os[2];
+      while(ip != iendw) {
+        for (k = 0; k < Nmax; ++k) {
+          *op |= ((long)((*ip) > threshold)) << k;
+          ip += is[0];
+        }
+        op += os[1];
+        ip += is[2] - Nmax*is[0];
+#endif
+      }
+    }
+  }
 
   return 0;
 }
@@ -84,8 +127,8 @@ static int BinaryMatching(lua_State *L) {
   const int K = input1->size[2];
   const int h = input1->size[0];
   const int w = input1->size[1];
-  const long* i1p = THLongTensor_data(input1);
-  const long* i2p = THLongTensor_data(input2);
+  const long* const i1p = THLongTensor_data(input1);
+  const long* const i2p = THLongTensor_data(input2);
   byte* op  = THByteTensor_data(output);
   long* osp = THLongTensor_data(outputscore);
   const long* const i1s = input1->stride;
@@ -306,7 +349,8 @@ static int BinaryMatching(lua_State *L) {
 #else // __NEON__
 
     int bestsum, sum, bestdx = 0, bestdy = 0;
-//#pragma omp parallel for private(y, x, dy, dx, sum, k, bestsum) firstprivate(bestdx, bestdy, dxmin, dxmax, dymin, dymax)
+#pragma omp parallel for private(y, x, dy, dx, sum, k, bestsum) firstprivate(bestdx, bestdy, dxmin, dxmax, dymin, dymax) \
+  shared(hmax,wmax,op,osp)
   for (y = 0; y < h; ++y) {
     if (y < 3*h/5) dymax = 3*hmax/5; else dymax = hmax;
     if (y > 2*h/5) dymin = 2*hmax/5; else dymin = 0;
@@ -425,7 +469,7 @@ static int Merge(lua_State *L) {
   int c, i;
   const int wincr = (w/2)*2*i1ss[1];
 #ifdef __ARM__
-//#pragma omp parallel for private(i1sp, i1spend, i2sp, i1p, i2p, op, c)
+#pragma omp parallel for private(i1sp, i1spend, i2sp, i1p, i2p, op, c)
 #endif
   for (i = 0; i < h; ++i) {
     i1sp = i1sp0 + i*i1ss[0];
