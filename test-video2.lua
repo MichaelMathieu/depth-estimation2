@@ -6,6 +6,7 @@ require 'matching'
 require 'prettydisplay'
 require 'framegrabber'
 require 'filtering'
+require 'planning'
 
 local hwin = 10
 local wwin = 16
@@ -50,12 +51,12 @@ local filters0= torch.LongTensor{{ 0, 0, 8, 8,   8, 8,16,16},
 				 { 8, 0,16, 8,   0, 8, 8,16},
 				 { 0, 0, 8,16,   8, 0,16,16},
 				 { 0, 0,16, 8,   0, 8,16,16},
-				 
+
 				 { 4, 4, 8, 8,   8, 8,12,12},
 				 { 8, 4,12, 8,   4, 8, 8,12},
 				 { 4, 0, 8,16,   8, 0,12,16},
 				 { 0, 4,16, 8,   0, 8,16,12},
-				 
+
 				 { 0, 0, 4,16,   4, 0, 8,16},
 				 { 8, 0,12,16,  12, 0,16,16},
 				 { 0, 0,16, 4,   0, 4,16, 8},
@@ -130,6 +131,8 @@ while true do
    flowrealdisp:resizeAs(flowreal)
    flowrealdisp:copy(flowreal)
    local norm = (flowreal[1]:cmul(flowreal[1])+flowreal[2]:cmul(flowreal[2])):sqrt()
+   local x1,y1,x2,y2 = planning(norm)
+   norm[{{y1+1,y2},{x1+1,x2}}]:add(10)
    local score2b = image.scale(score2:real(), score1:size(2),
 			       score1:size(1), 'simple')
    local select = score1:real():gt(score2b)

@@ -35,6 +35,20 @@ function BlockFilter:updateOutput(input)
    return self.output
 end
 
+function IntegralImage()
+   local iimage = {}
+   iimage.iimage = torch.FloatTensor()
+   function iimage:compute(input)
+      self.iimage:resize(input:size(1)+1, input:size(2)+1)
+      libfiltering.integralImage(input, self.iimage)
+      return self.iimage
+   end
+   function iimage:isum(x1, y1, x2, y2) --x1,y1 included, x2,y2 excluded
+      return self.iimage[y1+1][x1+1] + self.iimage[y2+1][x2+1] - self.iimage[y1+1][x2+1] - self.iimage[y2+1][x1+1]
+   end
+   return iimage
+end
+
 function filtering_testme()
    torch.setdefaulttensortype('torch.FloatTensor')
    local a = image.lena()[1]
@@ -55,42 +69,6 @@ function filtering_testme()
 				    { 0, 8,16,12,   0,12,16,16},
 
 				 }
---[[
-   local filters = torch.LongTensor{
-      {12, 0, 16, 16, 8, 4, 16, 12},
-      {4, 0, 8, 12, 0, 4, 12, 8},
-      {8, 0, 12, 16, 4, 4, 12, 12},
-      {8, 0, 12, 12, 4, 4, 16, 8},
-      {0, 4, 4, 12, 8, 4, 16, 8},
-      {8, 0, 16, 4, 0, 0, 4, 8},
-      {0, 4, 8, 8, 12, 0, 16, 8},
-      {4, 4, 8, 16, 0, 8, 12, 12},
-      {8, 4, 12, 16, 4, 8, 16, 12},
-      {0, 8, 4, 16, 8, 8, 16, 12},
-      {4, 0, 8, 16, 0, 4, 8, 12},
-      {8, 4, 16, 8, 0, 4, 4, 12},
-      {0, 8, 8, 12, 12, 4, 16, 12},
-      {0, 0, 4, 8, 4, 0, 12, 4},
-      {4, 4, 16, 8, 8, 0, 12, 12},
-      {0, 4, 12, 8, 4, 0, 8, 12},
-      {0, 12, 8, 16, 12, 8, 16, 16},
-      {8, 8, 16, 12, 0, 8, 4, 16},
-      {0, 0, 4, 8, 8, 0, 16, 4},
-      {12, 4, 16, 16, 4, 8, 16, 12},
-      {8, 0, 16, 16, 0, 4, 16, 12},
-      {0, 8, 12, 12, 4, 4, 8, 16},
-      {4, 8, 16, 12, 8, 4, 12, 16},
-      {12, 0, 16, 4, 8, 0, 12, 4},
-      {8, 0, 12, 4, 4, 0, 8, 4},
-      {8, 4, 16, 12, 12, 0, 16, 16},
-      {12, 0, 16, 12, 4, 4, 16, 8},
-      {4, 4, 12, 12, 8, 0, 12, 16},
-      {0, 4, 16, 12, 4, 0, 12, 16},
-      {12, 4, 16, 12, 0, 8, 8, 12},
-      {12, 8, 16, 16, 0, 12, 8, 16},
-      {8, 4, 12, 16, 0, 8, 12, 12},
-   }
-   --]]
    local filter = nn.BlockFilter(filters)
    filter:forward(a)
 end

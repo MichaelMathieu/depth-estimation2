@@ -61,6 +61,10 @@ static int FilterImage(lua_State *L) {
   const long* const os = output->stride;
   assert(is[1] == 1);
 
+  //printf("h=%d\tw=%d\tN=%d\n",h, w, N);
+  //printf("is=%d\tfs=%d\tos=%d\tos1=%d\n",is[0], fs[0], os[0], os[1]);
+  //printf("hmax=%d\twmax=%d\n",hmax,wmax);
+
   int i, j, k;
   const long* fp0;
   long* op0;
