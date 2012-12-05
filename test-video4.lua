@@ -5,18 +5,73 @@ require 'image'
 require 'matching'
 require 'prettydisplay'
 require 'framegrabber'
+require 'filtering'
+require 'planning'
 
 local hwin = 10
 local wwin = 16
-local filtersp1 = {
-   {2,4,2,16},
-   --{1,2,1,32},
+
+local filters0 = torch.LongTensor{
+   {0, 4, 8, 8, 12, 0, 16, 8},
+   {0, 8, 8, 12, 12, 4, 16, 12},
+   {8, 0, 12, 12, 4, 4, 16, 8},
+   {0, 0, 4, 8, 8, 0, 16, 4},
+   {8, 4, 12, 16, 4, 8, 16, 12},
+   {4, 0, 8, 12, 0, 4, 12, 8},
+   {0, 12, 8, 16, 12, 8, 16, 16},
+   {4, 4, 8, 16, 0, 8, 12, 12},
+   {0, 4, 8, 12, 0, 0, 4, 16},
+   {0, 4, 4, 12, 8, 4, 16, 8},
+   {4, 0, 12, 16, 0, 4, 16, 12},
+   {4, 0, 8, 4, 0, 0, 4, 4},
+   {4, 4, 12, 12, 4, 0, 8, 16},
+   {4, 4, 8, 8, 0, 4, 4, 8},
+   {0, 8, 4, 16, 8, 8, 16, 12},
+   {8, 0, 12, 4, 4, 0, 8, 4},
+   {4, 8, 8, 12, 0, 8, 4, 12},
+   {4, 12, 8, 16, 0, 12, 4, 16},
+   {8, 4, 12, 8, 4, 4, 8, 8},
+   {8, 4, 16, 12, 8, 0, 12, 16},
+   {8, 8, 12, 12, 4, 8, 8, 12},
+   {8, 12, 12, 16, 4, 12, 8, 16},
+   {12, 0, 16, 8, 0, 4, 8, 8},
+   {0, 4, 12, 8, 0, 0, 4, 12},
+   {12, 0, 16, 4, 8, 0, 12, 4},
+   {12, 4, 16, 12, 0, 8, 8, 12},
+   {4, 0, 12, 4, 0, 0, 8, 4},
+   {0, 8, 12, 12, 0, 4, 4, 16},
+   {12, 4, 16, 8, 8, 4, 12, 8},
+   {12, 8, 16, 12, 8, 8, 12, 12},
+   {12, 12, 16, 16, 8, 12, 12, 16},
+   {4, 4, 12, 8, 0, 4, 8, 8},
 }
-local filtersp2 = {
-   {2,4,2,16},
-}
-local filters, matcher, n1 = opticalFlowFastBM(hwin, wwin, filtersp1)
-local filters2, matcher2, n2 = opticalFlowFastBM(hwin, wwin, filtersp2)
+
+--[[
+local filters0= torch.LongTensor{{ 0, 0, 8, 8,   8, 8,16,16},
+				 { 8, 0,16, 8,   0, 8, 8,16},
+				 { 0, 0, 8,16,   8, 0,16,16},
+				 { 0, 0,16, 8,   0, 8,16,16},
+
+				 { 4, 4, 8, 8,   8, 8,12,12},
+				 { 8, 4,12, 8,   4, 8, 8,12},
+				 { 4, 0, 8,16,   8, 0,12,16},
+				 { 0, 4,16, 8,   0, 8,16,12},
+
+				 { 0, 0, 4,16,   4, 0, 8,16},
+				 { 8, 0,12,16,  12, 0,16,16},
+				 { 0, 0,16, 4,   0, 4,16, 8},
+				 { 0, 8,16,12,   0,12,16,16},
+			      }
+--]]
+
+local filters = nn.Sequential()
+--filters:add(nn.SpatialContrastiveNormalization(n_chans,image.gaussian1D(k_norm)))
+filters:add(nn.BlockFilter(filters0))
+local filters2 = filters:clone()
+--TODO depends on the size of the filters
+local matcher = nn.BinaryMatching(hwin, wwin, 7, 8, 7, 8)
+local matcher2 = nn.BinaryMatching(hwin, wwin, 7, 8, 7, 8)
+
 
 function loadImgFile(i)
    return image.rgb2y(image.scale(image.load(string.format("data/%09d.jpg", i)),
@@ -35,6 +90,17 @@ local i_img = 1
 local im1 = loadImg(i_img)
 local im12 = image.scale(im1, im1:size(3)/2, im1:size(2)/2)
 local im1filtered = filters:forward(im1):clone()
+
+image.save("im1.jpg", im1)
+local todisp = torch.Tensor(im1filtered:size(1), im1filtered:size(2))
+for i = 1,todisp:size(1) do
+   for j = 1,todisp:size(2) do
+      todisp[i][j] = im1filtered[i][j][1] % 2
+   end
+end
+image.save("im1filtered.jpg", todisp)
+
+
 local im1filtered2 = filters2:forward(im12):clone()
 local win, win2, win3, win4, win5
 local timer = torch.Timer()
@@ -47,15 +113,14 @@ local nfilter = 0
 local totaltime = 0
 
 while true do
-   sys.execute('sleep 1')
+   --sys.execute('sleep 1')
    i_img = i_img + 1
    local im2 = loadImg(i_img)
    local im22 = image.scale(im2, im1:size(3)/2, im1:size(2)/2)
    timer:reset()
    local im2filtered = filters:forward(im2)
-   torch.save('filters'..i_img, filters.modules[2].modules[1].modules[1], 'ascii')
    local im2filtered2 = filters2:forward(im22)
-   meantfilter = nfilter/(nfilter+1)*meantfilter+timer:time()['real']/(nfilter+1)
+   meantfilter = nfilter/(nfilter+1)*meantfilter + timer:time()['real']/(nfilter+1)
    nfilter = nfilter + 1
    print("toc filters : ", timer:time()['real'])
    print("mean   filters : ", meantfilter)
@@ -64,7 +129,7 @@ while true do
    print("toc match   : ", timer:time()['real'])
    --local tmed = torch.Timer()
    MergeFlow(flow1, score1, flow2, score2, flow,
-	     math.floor((hwin-1)/2), math.floor((wwin-1)/2), n1, n2)
+	     math.floor((hwin-1)/2), math.floor((wwin-1)/2), 1,1)
    --print("merge                                 ", tmed:time()['real'])
    MedianFilter(flow, 3)
    print("toc median   : ", timer:time()['real'])
@@ -72,18 +137,24 @@ while true do
    print("  ===== FPS : ",1/(timer:time()['real']), " =====")
    flowreal:resize(flow:size())
    flowreal:copy(flow)
+   local a = torch.Tensor(flowreal:size(2), flowreal:size(3)*2)
+   a[{{},{1,flowreal:size(3)}}]:copy(flowreal[1]/hwin*.5)
+   a[{{},{flowreal:size(3)+1, flowreal:size(3)*2}}]:copy(flowreal[2]/wwin*.5)
+   image.save("flow"..i_img..".jpg", a)
    flowreal[1]:add(-math.floor((hwin-1)/2)*2)
    flowreal[2]:add(-math.floor((wwin-1)/2)*2)
    flowrealdisp:resizeAs(flowreal)
    flowrealdisp:copy(flowreal)
    local norm = (flowreal[1]:cmul(flowreal[1])+flowreal[2]:cmul(flowreal[2])):sqrt()
+   local x1,y1,x2,y2 = planningOld(norm)
+   norm[{{y1+1,y2},{x1+1,x2}}]:add(10)
    local score2b = image.scale(score2:real(), score1:size(2),
 			       score1:size(1), 'simple')
    local select = score1:real():gt(score2b)
    local maxflow = math.max(math.ceil((hwin-1)/2)*2,math.ceil((wwin-1)/2)*2)
    win=image.display{image=prettydisplay({{im2,norm,flow1},
 					  {flowrealdisp,flow2},
-					  {score1:real()/n2, score2b:real()/n1, select}},
+					  {score1:real(), score2b:real(),select}},
 					 {{{},{},{}},
 					  {{-maxflow,maxflow},{}},
 					  {{0,10},{0,10},{}}}),

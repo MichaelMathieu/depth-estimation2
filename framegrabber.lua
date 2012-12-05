@@ -8,7 +8,7 @@ function recenter(fg)
 end
 
 function new_framegrabber(h, w)
-   local cam = image.Camera{idx = 0, width = w, height = h, nbuffers = 1, fps = 30}
+   local cam = image.Camera{idx = 1, width = w, height = h, nbuffers = 1, fps = 30}
    local mg = mongoose.new('/dev/ttyUSB0')
    while mongoose.getRotmat(mg) == nil do
       mongoose.fetchData(mg)
@@ -26,6 +26,8 @@ function new_framegrabber(h, w)
    
    function fg:recenter()
       mongoose.fetchData(self.mg)
+      print(self.P)
+      print(mongoose.getRotmat(self.mg):float())
       self.R0 = torch.mm(mongoose.getRotmat(self.mg):float(), self.P)
    end
    fg:recenter()
@@ -48,11 +50,15 @@ function new_framegrabber(h, w)
 end
 
 function framegrabber_testme()
-   local fg = new_framegrabber(240, 320)
+   local fg = new_framegrabber(480, 640)
+   local k = 0
    while true do
       for i = 1,10 do
-	 win=image.display{image=fg:grab(), win=win}
+	 local frame = fg:grab()
+	 image.save(string.format('output2/%07d.jpg', k), frame)
+	 k = k + 1
+	 win=image.display{image=frame, win=win}
       end
-      fg:recenter()
+      --fg:recenter()
    end
 end

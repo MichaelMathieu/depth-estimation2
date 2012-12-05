@@ -161,19 +161,19 @@ vector<int> selectFilters(const vector<Match> & matchs, int n, float max_corr) {
 
 void displayFilters(const vector<Filter> & filters) {
   int n = 20, n1=16;
-  matf output(n*8,n*8,0.25);
+  matf output(n*8,n*8,1.f);
   int oy = 0, ox = 0;
   for (int i = 0; i < filters.size(); ++i) {
     for (int j = 0; j < n1; ++j)
       for (int k = 0; k < n1; ++k)
-	output(oy+k,ox+j) = 0.5;
+	output(oy+k,ox+j) = 0.33;
     const Filter & f = filters[i];
     for (int j = f.x1p; j < f.x2p; ++j)
       for (int k = f.y1p; k < f.y2p; ++k)
-	output(oy+k,ox+j) = 1;
+	output(oy+k,ox+j) = 0.67;
     for (int j = f.x1m; j < f.x2m; ++j)
       for (int k = f.y1m; k < f.y2m; ++k)
-	output(oy+k,ox+j) = 0;
+	output(oy+k,ox+j) = 0.;
     ox += n;
     if (ox == n*8) {
       oy += n;
