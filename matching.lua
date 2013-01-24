@@ -2,8 +2,31 @@ require 'libmatching'
 require 'math'
 require 'nn'
 
+local Aligner, parent0 = torch.class('nn.Aligner', 'nn.Module')
 local Binarizer, parent1 = torch.class('nn.Binarizer', 'nn.Module')
 local BinaryMatching, parent2 = torch.class('nn.BinaryMatching', 'nn.Module')
+
+function Aligner:__init()
+   parent0:__init(self)
+   self.output = torch.FloatTensor()
+   self.H = torch.FloatTensor(3,3)
+end
+
+function Aligner:updateOutput(input)
+   --if input[1]:size():ne(input[2]:size()):sum() > 0 then
+   --error("Aligner:updateOutput : input[1] and input[2] must have same size")
+   --   end
+   if input[1]:nDimension() == 3 and input[1]:size(1) == 1 then
+      input[1] = input[1][1]
+   end
+   if input[2]:nDimension() == 3 and input[2]:size(1) == 1 then
+      input[2] = input[2][1]
+   end
+   --win32 = image.display{win=win32, image={input[1], input[2]}}
+   self.output:resizeAs(input[1])
+   libmatching.align(input[1], input[2], self.output, self.H)
+   return self.output, self.H
+end
 
 function Binarizer:__init(threshold)
    parent1:__init(self)
@@ -76,5 +99,12 @@ function MergeFlow(input1, input1score, input2, input2score, output,
    end
    libmatching.merge(input1, input1score, input2, input2score, output,
 		     hhwin, hwwin)
+   return output
+end
+
+function HomographyFilter(input, H)
+   --TODO: do not reallocate output at each call
+   output = torch.ByteTensor(input:size(2), input:size(3)):zero()
+   libmatching.homographyFilter(input, H, output, 0.5)
    return output
 end
