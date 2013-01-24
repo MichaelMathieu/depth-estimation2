@@ -6,6 +6,7 @@ extern "C" {
 #include<luaT.h>
 #include<TH/TH.h>
 }
+//#include<opencv/highgui.h>
 using namespace std;
 
 typedef THFloatTensor Tensor;
@@ -16,11 +17,54 @@ typedef double accreal;
 typedef unsigned char byte;
 typedef unsigned short uint16;
 
+typedef cv::Mat_<float> matf;
+
 #define TWO_BITS_PER_FILTER
 
 #ifdef __ARM__
 #define __NEON__
 #endif
+
+static int Align(lua_State *L) {
+  const char* idreal = ID_TENSOR_STRING;
+  const char* idfloat = "torch.FloatTensor";
+  THFloatTensor* input1 = (THFloatTensor*)luaT_checkudata(L, 1, idfloat);
+  THFloatTensor* input2 = (THFloatTensor*)luaT_checkudata(L, 2, idfloat);
+  THFloatTensor* output = (THFloatTensor*)luaT_checkudata(L, 3, idfloat);
+  THFloatTensor* outputH = (THFloatTensor*)luaT_checkudata(L, 4, idfloat);
+  
+  assert(input1->nDimension == 2);
+  const int h = input1->size[0];
+  const int w = input1->size[1];
+  float* ip1 = THFloatTensor_data(input1);
+  float* ip2 = THFloatTensor_data(input2);
+  float* op = THFloatTensor_data(output);
+  float* oHp = THFloatTensor_data(outputH);
+  const matf input1_cv(h, w, ip1);
+  const matf input2_cv(h, w, ip2);
+  cv::Mat input1_cv_8U, input2_cv_8U;
+  input1_cv.convertTo(input1_cv_8U, CV_8U, 255.f);
+  input2_cv.convertTo(input2_cv_8U, CV_8U, 255.f);
+  matf output_cv(h, w, op);
+  
+  
+  cv::Mat corners, corners2, status, err;
+  cv::goodFeaturesToTrack(input1_cv_8U, corners, 100, 0.1, 2);
+  cv::calcOpticalFlowPyrLK(input1_cv_8U, input2_cv_8U, corners,
+			   corners2, status, err);
+  //cout << cv::Mat(input1_cv_8U - input2_cv_8U) << endl;
+  //matf H = cv::estimateRigidTransform(corners, corners2, true);
+  //cv::warpAffine(input1_cv, output_cv, H, input1_cv.size());
+  
+  matf H = cv::findHomography(corners, corners2, CV_LMEDS);
+  //matf F = cv::findFundamentalMat(corners, corners2, CV_FM_RANSAC);
+  cv::warpPerspective(input1_cv, output_cv, H, input1_cv.size());
+
+  for (int i = 0; i < 9; ++i)
+    oHp[i] = H(i/3,i%3);
+  
+  return 0;
+}
 
 static int Binarize(lua_State *L) {
   const char* idreal = ID_TENSOR_STRING;
@@ -95,6 +139,7 @@ static int Binarize(lua_State *L) {
         }
         op += os[1];
         ip += is[2] - Nmax/2*is[0];
+      }
 #else
       ip = ip0 + i*is[1]+ byt*longSize*is[0];
       iendw = ip + w*is[2];
@@ -106,11 +151,11 @@ static int Binarize(lua_State *L) {
         }
         op += os[1];
         ip += is[2] - Nmax*is[0];
-#endif
       }
+#endif
     }
   }
-
+  
   return 0;
 }
 
@@ -385,6 +430,39 @@ static int BinaryMatching(lua_State *L) {
   return 0;
 }
 
+static int HomographyFilter(lua_State *L) {
+  const char* idbyte = "torch.ByteTensor";
+  const char* idfloat = "torch.FloatTensor";
+  THByteTensor*  input  = (THByteTensor* )luaT_checkudata(L, 1, idbyte);
+  THFloatTensor* H      = (THFloatTensor*)luaT_checkudata(L, 2, idfloat);
+  THByteTensor*  output = (THByteTensor* )luaT_checkudata(L, 3, idbyte);
+  float threshold = lua_tonumber(L, 4);
+  
+  const int h = input->size[1];
+  const int w = input->size[2];
+  byte*  const ip = THByteTensor_data(input);
+  byte*  const op = THByteTensor_data(output);
+  float* const Hp = THFloatTensor_data(H);
+  const long* const is =  input->stride;
+  const long* const os = output->stride;
+  matf H_cv(3, 3, Hp);
+  matf p1(1, 3, 1.0f);
+  matf p2(3, 1, 1.0f);
+  
+  for (int i = 0; i < h; ++i)
+    for (int j = 0; j < w; ++j) {
+      p1(0) = j+ip[is[0] + i*is[1] + j*is[2]]-14;
+      p1(1) = i+ip[        i*is[1] + j*is[2]]-8;
+      p2(0) = j;
+      p2(1) = i;
+      const float conf = ((matf)(p1 * H_cv * p2))(0,0);
+      if (conf < threshold)
+	op[i*os[0] + j*os[1]] = 1;
+    }
+
+  return 0;
+}
+
 static int MedianFilter(lua_State *L) {
   const char* idbyte = "torch.ByteTensor";
   THByteTensor* input = (THByteTensor*)luaT_checkudata(L, 1, idbyte);
@@ -468,6 +546,17 @@ static int Merge(lua_State *L) {
   const long* const i1sp0 = i1sp, *const i2sp0 = i2sp, *i1spend;
   int c, i;
   const int wincr = (w/2)*2*i1ss[1];
+
+  // deal with odd sizes
+  for (i = 0; i < h; ++i) {
+    op[        i*os[1] + (w-1)*os[2]] = 0;
+    op[os[0] + i*os[1] + (w-1)*os[2]] = 0;
+  }
+  for (i = 0; i < w; ++i) {
+    op[        (h-1)*os[1] + i*os[2]] = 0;
+    op[os[1] + (h-1)*os[1] + i*os[2]] = 0;
+  }
+
 #ifdef __ARM__
 #pragma omp parallel for private(i1sp, i1spend, i2sp, i1p, i2p, op, c)
 #endif
@@ -512,8 +601,10 @@ static int UseNeon(lua_State *L) {
 }
 
 static const struct luaL_reg libmatching[] = {
+  {"align", Align},
   {"binarize", Binarize},
   {"binaryMatching", BinaryMatching},
+  {"homographyFilter", HomographyFilter},
   {"medianFilter", MedianFilter},
   {"merge", Merge},
   {"sizeofLong", SizeofLong},

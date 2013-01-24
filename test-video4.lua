@@ -46,32 +46,13 @@ local filters0 = torch.LongTensor{
    {4, 4, 12, 8, 0, 4, 8, 8},
 }
 
---[[
-local filters0= torch.LongTensor{{ 0, 0, 8, 8,   8, 8,16,16},
-				 { 8, 0,16, 8,   0, 8, 8,16},
-				 { 0, 0, 8,16,   8, 0,16,16},
-				 { 0, 0,16, 8,   0, 8,16,16},
-
-				 { 4, 4, 8, 8,   8, 8,12,12},
-				 { 8, 4,12, 8,   4, 8, 8,12},
-				 { 4, 0, 8,16,   8, 0,12,16},
-				 { 0, 4,16, 8,   0, 8,16,12},
-
-				 { 0, 0, 4,16,   4, 0, 8,16},
-				 { 8, 0,12,16,  12, 0,16,16},
-				 { 0, 0,16, 4,   0, 4,16, 8},
-				 { 0, 8,16,12,   0,12,16,16},
-			      }
---]]
 
 local filters = nn.Sequential()
---filters:add(nn.SpatialContrastiveNormalization(n_chans,image.gaussian1D(k_norm)))
 filters:add(nn.BlockFilter(filters0))
 local filters2 = filters:clone()
 --TODO depends on the size of the filters
 local matcher = nn.BinaryMatching(hwin, wwin, 7, 8, 7, 8)
 local matcher2 = nn.BinaryMatching(hwin, wwin, 7, 8, 7, 8)
-
 
 function loadImgFile(i)
    return image.rgb2y(image.scale(image.load(string.format("data/%09d.jpg", i)),
@@ -90,17 +71,6 @@ local i_img = 1
 local im1 = loadImg(i_img)
 local im12 = image.scale(im1, im1:size(3)/2, im1:size(2)/2)
 local im1filtered = filters:forward(im1):clone()
-
-image.save("im1.jpg", im1)
-local todisp = torch.Tensor(im1filtered:size(1), im1filtered:size(2))
-for i = 1,todisp:size(1) do
-   for j = 1,todisp:size(2) do
-      todisp[i][j] = im1filtered[i][j][1] % 2
-   end
-end
-image.save("im1filtered.jpg", todisp)
-
-
 local im1filtered2 = filters2:forward(im12):clone()
 local win, win2, win3, win4, win5
 local timer = torch.Timer()
