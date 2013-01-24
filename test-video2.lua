@@ -7,6 +7,7 @@ require 'prettydisplay'
 require 'framegrabber'
 require 'filtering'
 require 'planning'
+require 'ardrone'
 
 local hwin = 10
 local wwin = 16
@@ -84,7 +85,13 @@ function loadImgCam(i)
    return image.rgb2y(fg:grab())
 end
 
-loadImg = loadImgFile
+ardrone.initvideo()
+function loadImgAR(i)
+   fr = ardrone.getframe(fr)
+   return image.scale(fr, 320, 180):resize(1, 180, 320)
+end
+
+loadImg = loadImgAR
 
 local i_img = 1
 local im1 = loadImg(i_img)
@@ -150,7 +157,7 @@ while true do
 					  {{-maxflow,maxflow},{}},
 					  {{0,10},{0,10},{}}})
    win=image.display{image=todisp,  win=win}
-   image.save(string.format('output_video/%07d.jpg', i_img), todisp)
+   --image.save(string.format('output_video/%07d.jpg', i_img), todisp)
    --[[win = image.display{image=norm, win=win, min=0, max=20}
    win2 = image.display{image=im2, win=win2}
    win3 = image.display{image=flow1, win=win3}

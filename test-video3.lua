@@ -9,6 +9,9 @@ require 'prettydisplay'
 require 'filtering'
 require 'planning'
 require 'ardrone'
+require 'io'
+require 'xlua'
+
 
 local hwin = 10
 local wwin = 16
@@ -81,23 +84,57 @@ function loadImgFile(i)
 				  320, 180, 'bilinear'))
 end
 
-cam = image.Camera{idx=1, fps=30, width=320, height=240}
+--cam = image.Camera{idx=1, fps=30, width=320, height=240}
+--io.write("Creating Ardrone ... ")
+--ar = ardrone.new('/home/linaro/work/torch/packages/fifo_ardrone_cmd')
+--print("done")
 local fg
+local fr
 iim = 0
+local p = xlua.Profiler()
+
 function loadImgCam(i)
-   --fg = fg or new_framegrabber(240, 320)
-   fr = cam:forward()
-   image.save(string.format("imgs/%07d.jpg", iim), fr)
+   p:start('getFrame')
+   fr = ardrone.getframe(fr)
+   p:lap('getFrame')
+   --fr = torch.Tensor(180, 320)
+   p:start('scaleFrame')
+   local returnedFrame = image.scale(fr,320,180)
+   p:lap('scaleFrame')
+   --p:start('saveFrame')
+   --image.save(string.format("imgs/%07d.jpg", iim), fr)
+   --p:lap('saveFrame')
+   --p:start('resizeFrame')
+   --returnedFrame = fr:resize(1,180,320)
+   --p:lap('resizeFrame')
    iim = iim+1
-   return image.rgb2y(fr)
+   return returnedFrame
+   --fg = fg or new_framegrabber(240, 320)
+   --fr = cam:forward()
+   --win2 = image.display{image=fr, win=win2}
+   --image.save(string.format("imgs/%07d.jpg", iim), fr)
+   --return image.rgb2y(fr)
    --return image.rgb2y(fg:grab())
 end
 
-loadImg = loadImgCam
+--io.write("Sync drone ... ")
+--ardrone.command(ar, 0, 0, 0, 0)
+--print("done")
 
-ar = ardrone.new('/home/myrhev/phd/drones/control/test')
-ardrone.takeoff(ar, 1)
 os.execute('sleep 2')
+
+io.write("Init Video ... ")
+ardrone.initvideo()
+print("done")
+
+--io.write("Take off...")
+--ardrone.takeoff(ar, 1)
+--print("done")
+
+os.execute('sleep 2')
+
+--loadImg = loadImgFile
+loadImg = loadImgCam
 
 local i_img = 1
 local im1 = loadImg(i_img)
@@ -115,13 +152,21 @@ local nfilter = 0
 local totaltime = 0
 
 while true do
-   --sys.execute('sleep 1')
+   p:start('total')
    i_img = i_img + 1
+   p:start('loadImage')
    local im2 = loadImg(i_img)
+   p:lap('loadImage')
+   p:start('scaleImage')
    local im22 = image.scale(im2, im1:size(3)/2, im1:size(2)/2)
+   p:lap('scaleImage')
    timer:reset()
+   p:start('filterIm1')
    local im2filtered = filters:forward(im2)
+   p:lap('filterIm1')
+   p:start('filterIm2')
    local im2filtered2 = filters2:forward(im22)
+   p:lap('filterIm2')
    meantfilter = nfilter/(nfilter+1)*meantfilter + timer:time()['real']/(nfilter+1)
    nfilter = nfilter + 1
    print("toc filters : ", timer:time()['real'])
@@ -145,21 +190,24 @@ while true do
    flowrealdisp:copy(flowreal)
    local norm = (flowreal[1]:cmul(flowreal[1])+flowreal[2]:cmul(flowreal[2])):sqrt()
    norm = norm[{{1, norm:size(1)/2},{}}]
-   local x1,y1,x2,y2 = planning(norm)
+   local x1,y1,x2,y2 = planningOld(norm)
 
    local target = (x2+x1)/2-im2[1]:size(2)/2
-   target = math.max(-1,math.min(1,target/200))
+   target = 0.25*math.max(-1,math.min(1,target/200))
    print(target)
-   ardrone.command(ar, 0.2, 0, target, 0)
-
+   --ardrone.command(ar, 0.1, 0, target, 0)
+   p:start('display')
    local im2color = torch.Tensor(3, im2:size(2), im2:size(3))
    im2color[1]:copy(im2[1])
    im2color[2]:copy(im2[1])
    im2color[3]:copy(im2[1])
    im2color[2][{{y1+1,y2},{x1+1,x2}}]:fill(0)
    win = image.display{image=im2color, win=win}
-
+   p:lap('display')
+   
    im1filtered = im2filtered:clone()
    im1filtered2 = im2filtered2:clone()
+   p:lap('total')
+   p:printAll{}
    print("---")
 end

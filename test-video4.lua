@@ -80,8 +80,10 @@ end
 
 local fg
 function loadImgCam(i)
-   fg = fg or new_framegrabber(240, 320)
-   return image.rgb2y(fg:grab())
+   --fg = fg or new_framegrabber(240, 320)
+   fr = ardrone.getframe(fr)
+   return image.scale(fr,320,180):resize(1,180,320)
+   --return image.rgb2y(fg:grab())
 end
 
 loadImg = loadImgFile
