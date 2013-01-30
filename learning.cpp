@@ -212,7 +212,7 @@ int main (int argc, char* argv[]) {
     cout << "Image " << argv[i] << " filtered" << endl;
   }
 
-  vector<int> selected = selectFilters(pixels, 32, 0.7);
+  vector<int> selected = selectFilters(pixels, 64, 0.7);
   
   cout << "{" << endl;
   for (int i = 0; i < selected.size(); ++i) {
